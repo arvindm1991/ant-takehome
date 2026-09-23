@@ -50,6 +50,7 @@ A **learning sub-agent** that rides alongside Claude's main agent in regular Cla
 | D14 | **LSA pre-empts the MA.** It starts from the user's prompt, predicts what the MA's work will involve, and asks the learner to reason ahead (incl. *approach* questions like "which files would you look at?"). As MA items arrive it **cross-verifies** its predictions and the learner's answers against them | Real agents spend most of their time on tool calls and source gathering, which is lookahead the LSA can use. We teach the *reasoning* behind the approach, never the tool calls themselves. |
 | D15 | **MA reasoning is streamed for real** (summarized thinking) while it works; only the reveal of the final steps is paced | Honest, chat-app-like experience during the 30–60 s wait. The stream also gives the LSA early signal. |
 | D16 | **Widgets are generated freely by Opus** (sliders and interactive HTML). **Quizzes (MCQ, etc.) use templates** | Opus reliably builds small interactive HTML. Templates keep assessments consistent and gradeable. We pre-test on the demo path. |
+| D18 | **Simulated existing repo** ("acme-notes", a small Next.js app with no auth) is given to the MA as context. The MA emits `read` steps for the files it consults. A visible *Prototype note* says the repo is simulated | Makes the demo feel like real agent work in an existing codebase, and gives the approach MCQs a grounded answer key: the files the MA actually chose to read. |
 | D17 | **Prototype polish focuses on one journey: the auth page.** Other suggested tasks work but aren't tuned | The brief asks for depth on one interaction pattern. The design is general; the demo is specific. |
 
 ## 5. User journeys
@@ -142,7 +143,7 @@ type ThreadItem = {
   id: string;            // `${threadId}:${messageId}#s${n}`  e.g. "t_7f3:m2#s3"
   threadId: string;
   messageId: string;
-  kind: "user_prompt" | "plan" | "reasoning" | "file" | "command" | "note" | "answer";
+  kind: "user_prompt" | "reasoning" | "read" | "plan" | "file" | "command" | "note" | "answer";
   title: string;         // "middleware.ts", "Plan", …
   content: string;       // markdown / code
   lang?: string;
@@ -172,6 +173,13 @@ type ThreadItem = {
 - **Pacing (mocked, D11):** once the final structured output arrives, the client reveals steps on a schedule. There's a thinking shimmer before each step, and the delay depends on the step's kind and size (roughly 1.5–6 s; `file` steps take longer). `trivial` means reveal immediately with no pacing. A *Prototype note* is attached to paced responses: *"Steps are revealed at a simulated agent pace. The real agent loop is out of scope for this prototype."*
 - The **full response is available before reveal** (because pacing is mocked). The LSA may see unrevealed items, which gives it the lookahead that a real agent's plan would provide (§9.4).
 - The MA system prompt is plain "helpful coding assistant". **No mention of learning.**
+
+### 8.1 Simulated repo (D18)
+`fixtures/acme-notes/`: a small Next.js App Router notes app with no auth. About 8–10 short files: `package.json`, `next.config.js`, `.env.example`, `app/layout.tsx`, `app/page.tsx`, `app/notes/page.tsx`, `app/api/notes/route.ts`, `lib/db.ts` (in-memory users/notes), `README.md`, plus a distractor or two (`app/globals.css`, `public/logo.svg`).
+- The MA receives the file tree and file contents in its system context, and is told it is working in this repo.
+- The MA's structured output starts with `read` steps (`{kind: "read", title: path, content: why it looked}`), followed by plan, file and note steps. Reads are paced like tool calls.
+- The repo tree is visible in the left sidebar under a *Prototype note: simulated repository*.
+- Approach MCQ options are drawn from the real file tree. The correct set is the MA's `read` steps, so they are grounded rather than invented.
 
 ## 9. Learning sub-agent (LSA)
 
@@ -369,7 +377,7 @@ evals/                     # stretch
 
 | M | Scope | Done when |
 |---|---|---|
-| M1 | Shell + MA | Suggested tasks; real MA call with streamed summarized reasoning; steps revealed with pacing plus a prototype note; trivial tasks instant; item IDs visible in the DOM |
+| M1 | Shell + MA | Simulated repo fixture + sidebar tree; suggested tasks; real MA call with streamed summarized reasoning; steps revealed with pacing plus a prototype note; trivial tasks instant; item IDs visible in the DOM |
 | M2 | LSA core loop | Learnability chip; learn toggle opens panel; objectives; pre-emptive approach MCQ, cross-verified when MA steps arrive; predict probe anchored to an upcoming step; answer graded; feedback anchors scroll and highlight |
 | M3 | Memory | Mastery/evidence/episodes/misconceptions persisted; Memory drawer shows mastery bars and timeline |
 | M4 | Supporting moves | hint / explain / demonstrate (Opus-generated JWT/bcrypt widgets in a sandboxed iframe); MCQ template; post-task entry (J2) |
@@ -404,4 +412,4 @@ A real agent loop and tool calls in the MA · the mind-map tab (D7, §19) · acc
 
 *Resolved:* MA latency of 30–60 s is accepted, with the reasoning streamed (D15). The Map tab is documented only (§19). Widgets are generated and quizzes templated (D16).
 
-1. MCQ answer key for `approach` probes: in a real repo the MA's file reads are ground truth. In the prototype (no real repo) the MA's plan and file steps serve as the key. Is that acceptable for the demo?
+*Resolved:* approach MCQ answer key comes from the simulated repo plus the MA's `read` steps (D18).
