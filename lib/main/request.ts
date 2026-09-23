@@ -3,7 +3,7 @@
 // lib/memory, and its input type carries only the main thread's own messages.
 import { repoAsContext } from "@/lib/repo/acmeNotes";
 
-export const MAIN_MODEL = process.env.MAIN_MODEL ?? "claude-opus-5";
+export const MAIN_MODEL = process.env.MAIN_MODEL || "claude-opus-5";
 
 export type MainHistoryMessage = { role: "user" | "assistant"; content: string };
 

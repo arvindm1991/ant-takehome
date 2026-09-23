@@ -7,9 +7,9 @@ import { LSA_TOOLS, toAction } from "./tools";
 import { mockAct, mockGrade, mockLearnability } from "./mock";
 import type { GradeRequest, GradeResult, LearnAction, LearnRequest, Learnability } from "./types";
 
-export const LEARN_MODEL = process.env.LEARN_MODEL ?? "claude-sonnet-5";
-export const GRADER_MODEL = process.env.GRADER_MODEL ?? "claude-sonnet-5";
-export const CLASSIFIER_MODEL = process.env.CLASSIFIER_MODEL ?? "claude-haiku-4-5";
+export const LEARN_MODEL = process.env.LEARN_MODEL || "claude-sonnet-5";
+export const GRADER_MODEL = process.env.GRADER_MODEL || "claude-sonnet-5";
+export const CLASSIFIER_MODEL = process.env.CLASSIFIER_MODEL || "claude-haiku-4-5";
 
 export const isMock = () => !process.env.ANTHROPIC_API_KEY || process.env.MOCK_LEARN === "1";
 
