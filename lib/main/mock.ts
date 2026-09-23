@@ -192,7 +192,57 @@ JWT_SECRET=
 
 export type MockResponse = { thinking: string[]; result: MainResult };
 
+const RATE_LIMIT_RESULT: MainResult = {
+  complexity: "task",
+  summary: "Added a per-IP and per-email sliding-window rate limit to the login route, returning 429 with Retry-After.",
+  steps: [
+    { kind: "read", title: "package.json", lang: "", content: "Check for an existing rate-limit dependency (none), so a small in-memory limiter fits this app." },
+    { kind: "read", title: "lib/db.ts", lang: "", content: "The store is in-memory too, so an in-memory limiter is consistent for now." },
+    {
+      kind: "plan",
+      title: "Plan",
+      lang: "",
+      content: `1. **Sliding-window limiter** keyed by IP *and* by email: 5 attempts / 15 min.
+2. **Apply it before \`verifyPassword()\`**, so attackers can't make the server burn bcrypt time on every guess.
+3. Return **429 + Retry-After**, and the same generic error text so it doesn't leak which emails exist.
+4. Note: in production use a shared store (e.g. Redis); in-memory only works on one instance.`,
+    },
+    {
+      kind: "file",
+      title: "lib/rateLimit.ts",
+      lang: "ts",
+      content: `const WINDOW_MS = 15 * 60 * 1000;
+const MAX_ATTEMPTS = 5;
+const hits = new Map<string, number[]>();
+
+/** Returns seconds until the key may retry, or 0 if allowed (and records the attempt). */
+export function rateLimit(key: string, now = Date.now()): number {
+  const recent = (hits.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
+  if (recent.length >= MAX_ATTEMPTS) return Math.ceil((recent[0] + WINDOW_MS - now) / 1000);
+  hits.set(key, [...recent, now]);
+  return 0;
+}
+`,
+    },
+    {
+      kind: "note",
+      title: "Verify & follow-ups",
+      lang: "",
+      content: "**Verify:** six bad logins in a row return 429 with `Retry-After`. **Follow-ups:** move to Redis for multi-instance deploys; consider exponential backoff per account.",
+    },
+  ],
+};
+
 export function mockResponse(prompt: string): MockResponse {
+  if (/rate.?limit/i.test(prompt)) {
+    return {
+      thinking: [
+        "Rate limiting the login endpoint. The main threat is online password guessing, so limit per IP and per account. ",
+        "Put the check before bcrypt verification so each blocked guess doesn't cost ~250ms of CPU.",
+      ],
+      result: RATE_LIMIT_RESULT,
+    };
+  }
   if (/auth|login|jwt|sign.?in/i.test(prompt)) {
     return { thinking: AUTH_THINKING, result: AUTH_RESULT };
   }

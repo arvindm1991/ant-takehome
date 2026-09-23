@@ -2,7 +2,8 @@
 
 export type Topic = { id: string; label: string };
 
-export type Learnability = { learnable: boolean; topics: Topic[] };
+/** relatedKnown: ids of previously studied topics this request builds on (interleaving). */
+export type Learnability = { learnable: boolean; topics: Topic[]; relatedKnown?: string[] };
 
 export type Objective = { topicId: string; label: string; why: string };
 
@@ -65,7 +66,8 @@ export type LearnEvent =
   | { type: "answer_submitted"; probeId: string }
   | { type: "answer_graded"; probeId: string; verdict: Verdict }
   | { type: "user_message"; text: string }
-  | { type: "main_agent_done" };
+  | { type: "main_agent_done" }
+  | { type: "refresher_start"; topicId: string; topicLabel: string; daysSince: number; interleaveWith: string | null };
 
 /** Read-only view of the main thread passed to the LSA (SPEC §7.1). */
 export type TrajectoryItem = {
@@ -85,6 +87,7 @@ export type LearnerStateView = {
 
 export type LearnRequest = {
   event: LearnEvent;
+  sessionTrigger: SessionTrigger;
   learner: LearnerStateView;
   userPrompt: string;
   mainAgentStatus: "working" | "done";

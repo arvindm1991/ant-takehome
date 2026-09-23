@@ -41,4 +41,5 @@ export const GradeOutput = z.object({
 export const LearnabilityOutput = z.object({
   learnable: z.boolean(),
   topics: z.array(z.object({ id: z.string(), label: z.string() })).max(4),
+  relatedKnown: z.array(z.string()),
 });

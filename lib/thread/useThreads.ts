@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { MainEvent, MainStep } from "@/lib/main/schema";
 import type { MainHistoryMessage } from "@/lib/main/request";
 import { revealDelayMs } from "./pacing";
@@ -13,17 +13,52 @@ const newThread = (): Thread => ({
   turns: [],
 });
 
+const STORAGE_KEY = "learnMode.threads.v1";
+
+/** Restore chats from this browser. In-flight turns can't resume, so finish them. */
+function loadThreads(): Thread[] {
+  if (typeof window === "undefined") return [newThread()];
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const saved = raw ? (JSON.parse(raw) as Thread[]) : [];
+    const restored = saved
+      .filter((t) => t.items.length > 0)
+      .map((t) => ({
+        ...t,
+        items: t.items.map((i) => ({ ...i, revealed: true, revealedAt: i.revealedAt ?? t.createdAt })),
+        turns: t.turns.map((x) =>
+          x.status === "thinking" || x.status === "revealing"
+            ? t.items.some((i) => i.messageId === x.messageId && i.kind !== "reasoning")
+              ? { ...x, status: "done" as const }
+              : { ...x, status: "error" as const, error: "Interrupted by a page reload." }
+            : x,
+        ),
+      }));
+    return [newThread(), ...restored];
+  } catch {
+    return [newThread()];
+  }
+}
+
 export type UseThreadsOptions = {
   /** Generic hook for observers (e.g. learn mode); the main agent is unaware of them. */
   onPromptSent?: (threadId: string, messageId: string, prompt: string) => void;
 };
 
 export function useThreads(opts: UseThreadsOptions = {}) {
-  const [threads, setThreads] = useState<Thread[]>(() => [newThread()]);
+  const [threads, setThreads] = useState<Thread[]>(loadThreads);
   const [activeId, setActiveId] = useState<string>(() => threads[0].id);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const active = threads.find((t) => t.id === activeId) ?? threads[0];
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(threads.filter((t) => t.items.length > 0).slice(0, 20)));
+    } catch {
+      /* storage unavailable: chats live in memory only */
+    }
+  }, [threads]);
 
   const update = useCallback((threadId: string, fn: (t: Thread) => Thread) => {
     setThreads((ts) => ts.map((t) => (t.id === threadId ? fn(t) : t)));
@@ -39,10 +74,13 @@ export function useThreads(opts: UseThreadsOptions = {}) {
   );
 
   const newChat = useCallback(() => {
+    // Reuse an existing empty chat rather than stacking blanks.
+    const empty = threads.find((t) => t.items.length === 0);
+    if (empty) return setActiveId(empty.id);
     const t = newThread();
     setThreads((ts) => [t, ...ts]);
     setActiveId(t.id);
-  }, []);
+  }, [threads]);
 
   const send = useCallback(
     async (prompt: string) => {

@@ -3,7 +3,7 @@
 // never writes to it (SPEC §7.1).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ACME_NOTES } from "@/lib/repo/acmeNotes";
-import { applyEvidence, bump, ensureTopics, estimateOf, learnerStateFor, normalizeTopicId, scheduleReview, snapshot, upsertEpisode } from "@/lib/memory/model";
+import { applyEvidence, applyReviewOutcome, bump, contextualRefresher, ensureTopics, estimateOf, learnerStateFor, normalizeTopicId, scheduleReview, snapshot, upsertEpisode } from "@/lib/memory/model";
 import { getMemory, updateMemory } from "@/lib/memory/store";
 import type { Thread } from "@/lib/thread/types";
 import { crossCheckApproach, readsComplete } from "./mcq";
@@ -23,6 +23,8 @@ import type {
 } from "./types";
 
 type Probe = Extract<LearnAction, { kind: "probe" }>;
+
+export type ContextualNudge = { topicId: string; label: string; daysSince: number; interleave: boolean; dismissed: boolean };
 
 const key = (threadId: string, messageId: string) => `${threadId}:${messageId}`;
 
@@ -61,7 +63,8 @@ function recordEvidence(s: LearnSession, thread: Thread, probe: Probe, answer: s
       misconceptionTag: misconceptionTag || undefined,
     });
     if (next === m) return m;
-    next = scheduleReview(next, [topicId]);
+    // Refreshers move the spaced-repetition interval; learning sessions just (re)schedule.
+    next = s.trigger === "refresher" || s.trigger === "contextual" ? applyReviewOutcome(next, topicId, verdict) : scheduleReview(next, [topicId]);
     const ep = next.episodes.find((e) => e.id === s.id);
     if (ep) {
       const topicIds = [...new Set([...ep.topicIds, topicId])];
@@ -121,6 +124,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
   const [sessions, setSessions] = useState<Record<string, LearnSession>>({});
   const [learnability, setLearnability] = useState<Record<string, Learnability>>({});
   const [panelOpen, setPanelOpen] = useState(false);
+  const [contextual, setContextual] = useState<Record<string, ContextualNudge>>({});
   const [error, setError] = useState<string | null>(null);
 
   // Refs mirror state so async handlers always read the latest values.
@@ -191,6 +195,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
       const objTopic = s.objective && learner.topics.find((t) => t.id === normalizeTopicId(s.objective!.topicId));
       const req: LearnRequest = {
         event,
+        sessionTrigger: s.trigger,
         learner,
         userPrompt: thread.items.find((i) => i.messageId === s.messageId.replace("m", "u"))?.content ?? "",
         mainAgentStatus,
@@ -230,7 +235,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
     (threadId: string, messageId: string, trigger: SessionTrigger) => {
       const existing = sessionsRef.current[threadId];
       setPanelOpen(true);
-      if (existing && existing.messageId === messageId) return;
+      if (existing && existing.messageId === messageId && (existing.trigger === "live" || existing.trigger === "post_task")) return;
       const lb = learnabilityRef.current[key(threadId, messageId)];
       const id = `ls_${Date.now().toString(36)}`;
       const thread = threadsRef.current.find((t) => t.id === threadId);
@@ -278,12 +283,72 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
         const lb = await post<Learnability>("/api/learn/classify", { prompt, known });
         learnabilityRef.current = { ...learnabilityRef.current, [key(threadId, messageId)]: lb };
         setLearnability(learnabilityRef.current);
-        if (lb.learnable && learnOnRef.current) start(threadId, messageId, "live");
+        const nudge = contextualRefresher(getMemory(), lb.topics, lb.relatedKnown);
+        if (nudge) setContextual((c) => ({ ...c, [key(threadId, messageId)]: { ...nudge, dismissed: false } }));
+        else if (lb.learnable && learnOnRef.current) start(threadId, messageId, "live");
       } catch {
         /* learnability is best-effort */
       }
     },
     [start],
+  );
+
+  /** Spaced-repetition or contextual refresher: always a new session (1 thread : N sessions). */
+  const startRefresher = useCallback(
+    (threadId: string, messageId: string, topic: { id: string; label: string; daysSince: number }, trigger: "refresher" | "contextual", interleaveWith: string | null) => {
+      const id = `ls_${Date.now().toString(36)}`;
+      const thread = threadsRef.current.find((t) => t.id === threadId);
+      const topicId = normalizeTopicId(topic.id);
+      setPanelOpen(true);
+      updateMemory((m) =>
+        upsertEpisode(m, {
+          id,
+          threadId,
+          threadTitle: thread?.title ?? "",
+          trigger,
+          topicIds: [topicId],
+          startedAt: Date.now() + m.timeOffsetMs,
+          masteryBefore: snapshot(m, [topicId]),
+          masteryAfter: snapshot(m, [topicId]),
+        }),
+      );
+      sessionsRef.current = {
+        ...sessionsRef.current,
+        [threadId]: {
+          id,
+          threadId,
+          messageId,
+          trigger,
+          topics: [{ id: topicId, label: topic.label }],
+          objective: { topicId, label: topic.label, why: trigger === "refresher" ? "Spaced review" : "Connects to your new task" },
+          feed: [],
+          widgets: {},
+          busy: false,
+          ended: false,
+          startedAt: Date.now(),
+        },
+      };
+      setSessions(sessionsRef.current);
+      void run(threadId, { type: "refresher_start", topicId, topicLabel: topic.label, daysSince: topic.daysSince, interleaveWith });
+    },
+    [run],
+  );
+
+  const dismissContextual = useCallback((threadId: string, messageId: string) => {
+    setContextual((c) => ({ ...c, [key(threadId, messageId)]: { ...c[key(threadId, messageId)], dismissed: true } }));
+    updateMemory((m) => ({ ...m, preferences: { ...m.preferences, dismissals: m.preferences.dismissals + 1 } }));
+  }, []);
+
+  const acceptContextual = useCallback(
+    (threadId: string, messageId: string) => {
+      const n = contextual[key(threadId, messageId)];
+      if (!n) return;
+      setContextual((c) => ({ ...c, [key(threadId, messageId)]: { ...n, dismissed: true } }));
+      updateMemory((m) => ({ ...m, preferences: { ...m.preferences, dismissals: 0 } }));
+      const lb = learnabilityRef.current[key(threadId, messageId)];
+      startRefresher(threadId, messageId, { id: n.topicId, label: n.label, daysSince: n.daysSince }, "contextual", n.interleave ? lb?.topics.map((t) => t.label).join(", ") || "this task" : null);
+    },
+    [contextual, startRefresher],
   );
 
   const selectObjective = useCallback(
@@ -354,6 +419,10 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
   return {
     session: sessions[activeThreadId] ?? null,
     widgetEngaged,
+    startRefresher,
+    contextual: (threadId: string, messageId: string) => contextual[key(threadId, messageId)],
+    dismissContextual,
+    acceptContextual,
     retryWidget: (threadId: string, action: Extract<LearnAction, { kind: "demonstrate" }>) => void buildWidget(threadId, action),
     sessions,
     learnability: (threadId: string, messageId: string) => learnability[key(threadId, messageId)],

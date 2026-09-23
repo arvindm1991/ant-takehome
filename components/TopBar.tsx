@@ -8,10 +8,11 @@ type Props = {
   onToggleLearn: () => void;
   dueCount: number;
   status: DeployStatus | null;
+  onBell: () => void;
 };
 
 /** Floating top-right controls: the persistent Learn-mode toggle + refresher badge (SPEC §6). */
-export function TopBar({ learnOn, onToggleLearn, dueCount, status }: Props) {
+export function TopBar({ learnOn, onToggleLearn, dueCount, status, onBell }: Props) {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-bg from-60% to-transparent px-5 pt-3 pb-5">
       <span className="pointer-events-auto">
@@ -33,6 +34,7 @@ export function TopBar({ learnOn, onToggleLearn, dueCount, status }: Props) {
           </span>
         </button>
         <button
+          onClick={onBell}
           aria-label={`${dueCount} learning refreshers due`}
           className="relative rounded-full border border-border bg-surface p-2 text-text/90 hover:border-muted"
         >

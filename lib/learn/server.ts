@@ -85,7 +85,7 @@ export async function classify(prompt: string, known: { id: string; label: strin
     max_tokens: 500,
     output_config: { format: zodOutputFormat(LearnabilityOutput) },
     system:
-      "Decide whether a request to a coding/knowledge assistant contains transferable skills worth learning (engineering concepts, techniques, trade-offs). Quick factual lookups and chit-chat are not learnable. Return up to 3 short topic labels (2–4 words) with kebab-case ids.",
+      "Decide whether a request to a coding/knowledge assistant contains transferable skills worth learning (engineering concepts, techniques, trade-offs). Quick factual lookups and chit-chat are not learnable. Return up to 3 short topic labels (2–4 words) with kebab-case ids. In relatedKnown, list ids of previously studied topics (if given) that this request builds on or sits next to, even if they aren't its main topic; else [].",
     messages: [
       {
         role: "user",
@@ -93,7 +93,7 @@ export async function classify(prompt: string, known: { id: string; label: strin
       },
     ],
   });
-  return res.parsed_output ?? { learnable: false, topics: [] };
+  return res.parsed_output ?? { learnable: false, topics: [], relatedKnown: [] };
 }
 
 const WIDGET_SYSTEM = `You build small interactive teaching widgets that run inside a sandboxed iframe (scripts allowed; no network, no same-origin, no storage, no alerts/prompts/forms that submit).

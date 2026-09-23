@@ -3,9 +3,14 @@
 import { MOCK_WIDGETS } from "./widgets/mock";
 import type { GradeRequest, GradeResult, LearnAction, LearnRequest, Learnability, TrajectoryItem } from "./types";
 
-const AUTH_RE = /auth|login|jwt|sign.?in/i;
+const RATE_RE = /rate.?limit/i;
+const AUTH_RE = /^(?!.*rate.?limit).*(auth|login|jwt|sign.?in)/i;
 
 export function mockLearnability(prompt: string): Learnability {
+  if (RATE_RE.test(prompt)) {
+    // Builds on the auth work: brute-forcing logins is exactly what bcrypt + rate limiting defend against.
+    return { learnable: true, topics: [{ id: "rate-limiting", label: "rate limiting" }], relatedKnown: ["password-hashing", "jwt"] };
+  }
   if (AUTH_RE.test(prompt)) {
     return {
       learnable: true,
@@ -16,10 +21,10 @@ export function mockLearnability(prompt: string): Learnability {
       ],
     };
   }
-  if (/sql|rate.?limit|debounce/i.test(prompt)) {
-    return { learnable: true, topics: [{ id: "general", label: prompt.split(" ").slice(0, 4).join(" ") }] };
+  if (/sql|debounce/i.test(prompt)) {
+    return { learnable: true, topics: [{ id: "general", label: prompt.split(" ").slice(0, 4).join(" ") }], relatedKnown: [] };
   }
-  return { learnable: false, topics: [] };
+  return { learnable: false, topics: [], relatedKnown: [] };
 }
 
 const find = (t: TrajectoryItem[], title: string) => t.find((i) => i.title === title)?.id;
@@ -71,6 +76,11 @@ export function mockAct(r: LearnRequest): LearnAction[] {
   const topic = r.objective?.topicId ?? "jwt";
   const probes = r.feed.filter((e) => e.kind === "action" && e.action.kind === "probe");
   const e = r.event;
+
+  if (e.type === "refresher_start") return [refresherProbe(r, e.topicId, e.interleaveWith)];
+  if ((r.sessionTrigger === "refresher" || r.sessionTrigger === "contextual") && e.type === "answer_graded") {
+    return [{ kind: "end", recap: e.verdict === "correct" ? "Still solid. Next check-in will be further out." : "Worth another look. I'll bring this back sooner." }];
+  }
 
   if (!AUTH_RE.test(r.userPrompt)) {
     return [{ kind: "explain", text: "_Mock mode:_ the scripted learning companion only covers the **auth page** task. Add an API key to run the real learning agent on any task.", topicId: "general", anchors: [] }];
@@ -156,6 +166,56 @@ function coreProbe(r: LearnRequest, topic: string): LearnAction {
   };
 }
 
+const REFRESH: Record<string, { question: string; anchorTitle: string; rubric: string }> = {
+  jwt: {
+    question: "Quick check from last time: a teammate says “JWT payloads are encrypted, so it's safe to put the user's role in there.” What's wrong with that, and what actually stops someone changing the role?",
+    anchorTitle: "lib/auth.ts",
+    rubric: "Payload is only base64 (readable, not encrypted); the signature (HMAC with the server secret) is what prevents tampering; verification rejects edited tokens.",
+  },
+  "password-hashing": {
+    question: "Quick check: your hashes leak. Why does it matter that Claude chose bcrypt over SHA-256, in one or two sentences?",
+    anchorTitle: "lib/auth.ts",
+    rubric: "bcrypt is deliberately slow (cost factor) and salted, so offline brute force is far more expensive than fast SHA-256.",
+  },
+  "token-storage": {
+    question: "Quick check: why is the session token in an httpOnly cookie instead of localStorage?",
+    anchorTitle: "app/api/login/route.ts",
+    rubric: "httpOnly cookies can't be read by page scripts, limiting token theft via XSS; localStorage is readable by any script.",
+  },
+  "codebase-orientation": {
+    question: "Quick check: you're dropped into an unfamiliar repo to add a feature. Which three things do you look at before writing code, and why?",
+    anchorTitle: "package.json",
+    rubric: "Dependencies/framework version (package.json), the data model (e.g. lib/db.ts), and the code the change touches or must protect (e.g. routes/API).",
+  },
+};
+
+const INTERLEAVE: Record<string, { question: string; rubric: string }> = {
+  "password-hashing": {
+    question: "Claude is adding rate limiting to login. You learned bcrypt makes each guess slow. Why do you still need rate limiting on `/api/login` if passwords are bcrypt-hashed?",
+    rubric: "bcrypt slows offline cracking of stolen hashes; rate limiting stops online guessing against the live endpoint (and protects the server from the CPU cost of bcrypt per attempt).",
+  },
+  jwt: {
+    question: "Claude is rate-limiting login. Once a user has a valid JWT, does rate limiting the login endpoint protect the rest of the API? Why or why not?",
+    rubric: "No: tokens are verified per request by middleware; rate limiting login only limits credential guessing. Other endpoints need their own limits.",
+  },
+};
+
+function refresherProbe(r: LearnRequest, topicId: string, interleaveWith: string | null): LearnAction {
+  const il = interleaveWith ? INTERLEAVE[topicId] : undefined;
+  const q = REFRESH[topicId] ?? REFRESH.jwt;
+  return {
+    kind: "probe",
+    id: pid(il ? "interleave" : "refresh"),
+    mode: il ? "what_if" : "explain_back",
+    format: "free_text",
+    question: il ? il.question : q.question,
+    options: [],
+    topicId,
+    anchors: [find(r.trajectory, q.anchorTitle)].filter(Boolean) as string[],
+    rubric: il ? il.rubric : q.rubric,
+  };
+}
+
 function hintFor(topic: string) {
   return {
     jwt: "Think about what an attacker could change in a token, and what happens to a token that was stolen last week.",
@@ -184,8 +244,20 @@ const WHAT_IF_KEYWORDS: Record<string, RegExp[]> = {
   "token-storage": [/csrf|cross.?site|forg/i, /request|post|other site/i],
 };
 
+const REFRESH_KEYWORDS: Record<string, RegExp[]> = {
+  jwt: [/base64|readable|not encrypt|anyone can (read|decode)/i, /sign|hmac|secret/i],
+  "password-hashing": [/slow|cost/i, /brute|crack|guess|salt|fast/i],
+  "token-storage": [/httponly|http-only/i, /xss|script|javascript/i],
+  "codebase-orientation": [/package|depend|version/i, /model|schema|db|data/i, /route|api|endpoint|protect|touch/i],
+};
+const INTERLEAVE_KEYWORDS: Record<string, RegExp[]> = {
+  "password-hashing": [/online|live|endpoint|server/i, /offline|stolen|leak|hash|cpu|cost/i],
+  jwt: [/no|doesn.?t|not/i, /token|middleware|other (endpoint|route)|per request/i],
+};
+
 export function mockGrade(g: GradeRequest): GradeResult {
-  const kws = (g.probe.mode === "what_if" ? WHAT_IF_KEYWORDS : KEYWORDS)[g.probe.topicId] ?? [];
+  const table = g.probe.id.includes("interleave") ? INTERLEAVE_KEYWORDS : g.probe.id.includes("refresh") ? REFRESH_KEYWORDS : g.probe.mode === "what_if" ? WHAT_IF_KEYWORDS : KEYWORDS;
+  const kws = table[g.probe.topicId] ?? [];
   const hits = kws.filter((k) => k.test(g.answer)).length;
   const verdict = hits >= 2 ? "correct" : hits === 1 ? "partial" : "incorrect";
   const anchor = g.probe.anchors[0] ?? g.trajectory.find((i) => i.kind === "file")?.id;

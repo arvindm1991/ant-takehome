@@ -81,6 +81,10 @@ function describeEvent(r: LearnRequest): string {
       return `The user asked: "${e.text}". Answer briefly and grounded (explain), then optionally invite a check.`;
     case "main_agent_done":
       return "The main agent just finished. If the objective isn't covered, continue; otherwise wrap up.";
+    case "refresher_start":
+      return e.interleaveWith
+        ? `Interleaving refresher: the user's new task touches "${e.interleaveWith}", adjacent to "${e.topicLabel}" [${e.topicId}] which they practised ${e.daysSince} day(s) ago. Ask ONE retrieval question that connects the two, grounded in the current work. Don't re-teach first.`
+        : `Spaced-repetition refresher on "${e.topicLabel}" [${e.topicId}], last practised ${e.daysSince} day(s) ago. Ask ONE retrieval question (explain_back or what_if) anchored to the trajectory, phrased differently from past questions in the evidence. Don't re-teach first; retrieval is the point.`;
   }
 }
 
@@ -96,6 +100,8 @@ ${formatLearner(r.learner)}
 <relevant_evidence>
 ${formatEvidence(r.learner)}
 </relevant_evidence>
+
+<session_type>${r.sessionTrigger}${r.sessionTrigger === "refresher" || r.sessionTrigger === "contextual" ? " (short: one retrieval question, brief feedback, then end_session)" : ""}</session_type>
 
 <objective>${r.objective ? `${r.objective.label} [${r.objective.topicId}]: ${r.objective.why}` : "(not chosen yet)"}</objective>
 

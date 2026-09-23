@@ -136,3 +136,60 @@ export function learnerStateFor(m: LearnerMemory, topicIds: TopicId[]) {
   };
 }
 export type LearnerState = ReturnType<typeof learnerStateFor>;
+
+export type Refresher = {
+  topicId: TopicId;
+  label: string;
+  estimate: number;
+  dueAt: number;
+  daysSince: number;
+  source: { threadId: string; messageId: string; threadTitle: string } | null;
+};
+
+/** Due + not yet solid → Inbox / badge (SPEC §10.3 trigger 3). */
+export function dueRefreshers(m: LearnerMemory): Refresher[] {
+  const t = now(m);
+  return Object.entries(m.mastery)
+    .filter(([, r]) => r.nextDue != null && r.nextDue <= t && r.estimate < 0.7)
+    .map(([id, r]) => {
+      const last = [...m.evidence].reverse().find((e) => e.topicId === id && e.threadItemRefs.length > 0);
+      const ref = last?.threadItemRefs[0];
+      const messageId = ref?.split(":")[1]?.split("#")[0];
+      const ep = last && m.episodes.find((e) => e.id === last.sessionId);
+      return {
+        topicId: id,
+        label: m.topics[id]?.label ?? id,
+        estimate: r.estimate,
+        dueAt: r.nextDue!,
+        daysSince: Math.max(0, Math.round((t - r.lastSeen) / DAY)),
+        source: last && messageId ? { threadId: last.threadId, messageId, threadTitle: ep?.threadTitle ?? "" } : null,
+      };
+    })
+    .sort((a, b) => a.estimate - b.estimate);
+}
+
+/** Contextual trigger (SPEC §10.3 1–2): direct recurrence first, then interleaving. */
+export function contextualRefresher(
+  m: LearnerMemory,
+  topics: { id: string }[],
+  relatedKnown: string[] = [],
+): { topicId: TopicId; label: string; daysSince: number; interleave: boolean } | null {
+  const t = now(m);
+  const practised = (id: string) => (m.mastery[id]?.attempts ?? 0) > 0 && (m.mastery[id]?.estimate ?? 1) < 0.9;
+  const pick = (id: string, interleave: boolean) => ({
+    topicId: id,
+    label: m.topics[id]?.label ?? id,
+    daysSince: Math.max(0, Math.round((t - m.mastery[id].lastSeen) / DAY)),
+    interleave,
+  });
+  const direct = topics.map((x) => normalizeTopicId(x.id)).find(practised);
+  if (direct) return pick(direct, false);
+  // After repeated dismissals, only direct recurrence nudges remain (SPEC §10.3 guardrail).
+  if (m.preferences.dismissals >= 3) return null;
+  const adjacent = relatedKnown.map(normalizeTopicId).filter(practised).sort((a, b) => m.mastery[a].estimate - m.mastery[b].estimate)[0];
+  return adjacent ? pick(adjacent, true) : null;
+}
+
+export function advanceClock(m: LearnerMemory, days: number): LearnerMemory {
+  return { ...m, timeOffsetMs: m.timeOffsetMs + days * DAY };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyEvidence, applyReviewOutcome, DAY, INTERVAL_DAYS, learnerStateFor, nextEstimate, PRIOR, scheduleReview } from "./model";
+import { advanceClock, applyEvidence, applyReviewOutcome, contextualRefresher, dueRefreshers, DAY, INTERVAL_DAYS, learnerStateFor, nextEstimate, PRIOR, scheduleReview } from "./model";
 import { emptyMemory } from "./types";
 import type { EvidenceInput } from "./model";
 
@@ -60,5 +60,28 @@ describe("learner state for the LSA context", () => {
     expect(s.topics[0]).toMatchObject({ id: "jwt", attempts: 1, openMisconceptions: ["x"] });
     expect(s.topics[1]).toMatchObject({ id: "password-hashing", estimate: null, band: "new" });
     expect(s.evidence).toHaveLength(1);
+  });
+});
+
+
+describe("refreshers (SPEC §10.3)", () => {
+  const learned = () =>
+    scheduleReview(applyEvidence(emptyMemory(), ev({ verdict: "partial", threadItemRefs: ["t1:m1#s7"] })), ["jwt"]);
+  it("become due after the interval passes on the simulated clock", () => {
+    expect(dueRefreshers(learned())).toHaveLength(0);
+    const due = dueRefreshers(advanceClock(learned(), 3));
+    expect(due).toHaveLength(1);
+    expect(due[0]).toMatchObject({ topicId: "jwt", daysSince: 3, source: { threadId: "t1", messageId: "m1" } });
+  });
+  it("prefer direct recurrence over interleaving", () => {
+    const m = learned();
+    expect(contextualRefresher(m, [{ id: "jwt" }], ["x"])).toMatchObject({ topicId: "jwt", interleave: false });
+    expect(contextualRefresher(m, [{ id: "rate-limiting" }], ["jwt"])).toMatchObject({ topicId: "jwt", interleave: true });
+    expect(contextualRefresher(m, [{ id: "rate-limiting" }], [])).toBeNull();
+  });
+  it("stop interleaving nudges after repeated dismissals", () => {
+    const m = { ...learned(), preferences: { shown: {}, engaged: {}, dismissals: 3 } };
+    expect(contextualRefresher(m, [{ id: "rate-limiting" }], ["jwt"])).toBeNull();
+    expect(contextualRefresher(m, [{ id: "jwt" }], [])).not.toBeNull();
   });
 });

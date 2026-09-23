@@ -5,6 +5,8 @@ import { ArrowUp, BookOpen, Check, CircleHelp, Compass, FlaskConical, Graduation
 import { deriveFeed } from "@/lib/learn/useLearn";
 import { ProgressView } from "./ProgressView";
 import { Widget } from "./Widget";
+import { InboxView } from "./InboxView";
+import type { Refresher } from "@/lib/memory/model";
 import type { FeedEntry, LearnAction, LearnSession, Objective, ProbeMode, Verdict } from "@/lib/learn/types";
 import type { Thread } from "@/lib/thread/types";
 import { focusThreadItem } from "@/lib/thread/focus";
@@ -21,11 +23,15 @@ type Props = {
   onAnswer: (probeId: string, text: string, selected: string[]) => void;
   onAsk: (text: string) => void;
   onWidgetEngaged: () => void;
+  tab: PanelTab;
+  onTab: (t: PanelTab) => void;
+  onOpenRefresher: (r: Refresher) => void;
+  threadExists: (id: string) => boolean;
+  dueCount: number;
   onWidgetRetry: (action: Extract<LearnAction, { kind: "demonstrate" }>) => void;
 };
 
-export function LearnPanel({ thread, session, simulated, canStart, error, onClose, onStart, onObjective, onAnswer, onAsk, onWidgetEngaged, onWidgetRetry }: Props) {
-  const [tab, setTab] = useState<"session" | "progress">("session");
+export function LearnPanel({ thread, session, simulated, canStart, error, onClose, onStart, onObjective, onAnswer, onAsk, onWidgetEngaged, onWidgetRetry, tab, onTab, onOpenRefresher, threadExists, dueCount }: Props) {
   const feed = session ? deriveFeed(session, thread) : [];
   const bottom = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -48,26 +54,31 @@ export function LearnPanel({ thread, session, simulated, canStart, error, onClos
             Learning
             {simulated && <span className="rounded-full bg-note-soft px-1.5 py-0.5 text-[10.5px] font-normal text-note">scripted mock</span>}
           </div>
-          <div className="truncate text-[12px] text-muted">{thread.title}</div>
+          <div className="truncate text-[12px] text-muted">
+            {session && session.trigger !== "live" && session.trigger !== "post_task" ? `${session.trigger === "refresher" ? "Refresher" : "Connected refresher"} · ` : ""}
+            {thread.title}
+          </div>
         </div>
         <button onClick={onClose} aria-label="Close learning panel" className="rounded-md p-1 text-muted hover:bg-raised hover:text-text">
           <X size={16} />
         </button>
       </header>
       <div className="flex gap-4 border-b border-border px-4 text-[13px]">
-        {(["session", "progress"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`border-b-2 py-2 capitalize ${tab === t ? "border-learn font-medium" : "border-transparent text-muted hover:text-text"}`}>
-            {t === "progress" ? "Your progress" : "Session"}
+        {(["session", "progress", "inbox"] as const).map((t) => (
+          <button key={t} onClick={() => onTab(t)} className={`flex items-center gap-1.5 border-b-2 py-2 ${tab === t ? "border-learn font-medium" : "border-transparent text-muted hover:text-text"}`}>
+            {TAB_LABEL[t]}
+            {t === "inbox" && dueCount > 0 && <span className="rounded-full bg-accent px-1.5 text-[10px] font-semibold leading-4 text-white">{dueCount}</span>}
           </button>
         ))}
-        <span className="py-2 text-muted/60" title="Refreshers arrive in a later milestone">
-          Inbox
-        </span>
       </div>
 
       {tab === "progress" ? (
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
           <ProgressView activeThreadId={thread.id} />
+        </div>
+      ) : tab === "inbox" ? (
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          <InboxView onOpen={onOpenRefresher} threadExists={threadExists} />
         </div>
       ) : (
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
@@ -118,6 +129,9 @@ function EmptyPanel({ canStart, onStart }: Pick<Props, "canStart" | "onStart">) 
     </div>
   );
 }
+
+export type PanelTab = "session" | "progress" | "inbox";
+const TAB_LABEL: Record<PanelTab, string> = { session: "Session", progress: "Your progress", inbox: "Inbox" };
 
 const extras = (e: Extract<FeedEntry, { kind: "reveal" }>) => e.picked.filter((p) => !e.actual.some((a) => a.path === p));
 
