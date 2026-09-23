@@ -22,6 +22,13 @@ export const ProbeInput = z.object({
 
 export const HintInput = z.object({ text: z.string(), topicId: z.string(), anchors: z.array(z.string()) });
 export const ExplainInput = HintInput;
+export const DemonstrateInput = z.object({
+  title: z.string(),
+  spec: z.string(),
+  topicId: z.string(),
+  anchors: z.array(z.string()),
+});
+
 export const EndSessionInput = z.object({ recap: z.string() });
 
 export const GradeOutput = z.object({

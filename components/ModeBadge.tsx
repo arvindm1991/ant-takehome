@@ -25,6 +25,7 @@ export function ModeBadge({ status }: { status: DeployStatus | null }) {
           <Row label="Main agent" value={status.mainAgent.live ? `Live · ${status.mainAgent.model} (reasoning streamed)` : "Scripted mock (no API key)"} live={status.mainAgent.live} />
           <Row label="Learning agent" value={status.learningAgent.live ? `Live · ${status.learningAgent.model}` : "Scripted mock (no API key)"} live={status.learningAgent.live} />
           <Row label="Grader" value={status.learningAgent.live ? `Live · ${status.grader.model}` : "Scripted mock (keyword match)"} live={status.learningAgent.live} />
+          <Row label="Widget builder" value={status.learningAgent.live ? `Live · ${status.widgetBuilder.model} (generated per session)` : "Pre-built demo widgets"} live={status.learningAgent.live} />
           <Row label="Learnability check" value={status.learningAgent.live ? `Live · ${status.classifier.model}` : "Scripted mock (regex)"} live={status.learningAgent.live} />
           <div className="mt-3 mb-1 font-medium">Always simulated</div>
           <ul className="list-disc space-y-0.5 pl-5 text-muted">

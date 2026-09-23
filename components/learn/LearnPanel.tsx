@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { ArrowUp, BookOpen, Check, CircleHelp, Compass, FlaskConical, GraduationCap, Lightbulb, Loader2, Sparkles, X } from "lucide-react";
+import { ArrowUp, BookOpen, Check, CircleHelp, Compass, FlaskConical, GraduationCap, Lightbulb, Loader2, MousePointerClick, Sparkles, X } from "lucide-react";
 import { deriveFeed } from "@/lib/learn/useLearn";
 import { ProgressView } from "./ProgressView";
+import { Widget } from "./Widget";
 import type { FeedEntry, LearnAction, LearnSession, Objective, ProbeMode, Verdict } from "@/lib/learn/types";
 import type { Thread } from "@/lib/thread/types";
 import { focusThreadItem } from "@/lib/thread/focus";
@@ -19,9 +20,11 @@ type Props = {
   onObjective: (o: Objective) => void;
   onAnswer: (probeId: string, text: string, selected: string[]) => void;
   onAsk: (text: string) => void;
+  onWidgetEngaged: () => void;
+  onWidgetRetry: (action: Extract<LearnAction, { kind: "demonstrate" }>) => void;
 };
 
-export function LearnPanel({ thread, session, simulated, canStart, error, onClose, onStart, onObjective, onAnswer, onAsk }: Props) {
+export function LearnPanel({ thread, session, simulated, canStart, error, onClose, onStart, onObjective, onAnswer, onAsk, onWidgetEngaged, onWidgetRetry }: Props) {
   const [tab, setTab] = useState<"session" | "progress">("session");
   const feed = session ? deriveFeed(session, thread) : [];
   const bottom = useRef<HTMLDivElement>(null);
@@ -80,6 +83,8 @@ export function LearnPanel({ thread, session, simulated, canStart, error, onClos
               isLatestProbe={e.kind === "action" && lastProbeId === e}
               onObjective={onObjective}
               onAnswer={onAnswer}
+              onWidgetEngaged={onWidgetEngaged}
+              onWidgetRetry={onWidgetRetry}
             />
           ))}
         {session?.busy && (
@@ -131,6 +136,8 @@ function Entry({
   isLatestProbe,
   onObjective,
   onAnswer,
+  onWidgetEngaged,
+  onWidgetRetry,
 }: {
   entry: FeedEntry;
   thread: Thread;
@@ -139,10 +146,22 @@ function Entry({
   isLatestProbe: boolean;
   onObjective: (o: Objective) => void;
   onAnswer: Props["onAnswer"];
+  onWidgetEngaged: Props["onWidgetEngaged"];
+  onWidgetRetry: Props["onWidgetRetry"];
 }) {
   switch (entry.kind) {
     case "action":
-      return <ActionCard action={entry.action} thread={thread} session={session} answered={answered} isLatestProbe={isLatestProbe} onObjective={onObjective} onAnswer={onAnswer} />;
+      return <ActionCard
+          action={entry.action}
+          thread={thread}
+          session={session}
+          answered={answered}
+          isLatestProbe={isLatestProbe}
+          onObjective={onObjective}
+          onAnswer={onAnswer}
+          onWidgetEngaged={onWidgetEngaged}
+          onWidgetRetry={onWidgetRetry}
+        />;
     case "answer":
       return (
         <div className="ml-auto max-w-[85%] rounded-2xl bg-raised px-3.5 py-2 text-[14px]">
@@ -209,6 +228,8 @@ function ActionCard({
   isLatestProbe,
   onObjective,
   onAnswer,
+  onWidgetEngaged,
+  onWidgetRetry,
 }: {
   action: LearnAction;
   thread: Thread;
@@ -217,6 +238,8 @@ function ActionCard({
   isLatestProbe: boolean;
   onObjective: (o: Objective) => void;
   onAnswer: Props["onAnswer"];
+  onWidgetEngaged: Props["onWidgetEngaged"];
+  onWidgetRetry: Props["onWidgetRetry"];
 }) {
   switch (action.kind) {
     case "objectives":
@@ -280,6 +303,16 @@ function ActionCard({
           </div>
           <Md>{action.text}</Md>
           <Anchors ids={action.anchors} thread={thread} />
+        </Card>
+      );
+    case "demonstrate":
+      return (
+        <Card>
+          <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium uppercase tracking-wide text-learn">
+            <MousePointerClick size={13} /> Try it · {action.title}
+          </div>
+          <Widget state={session.widgets[action.id]} title={action.title} onEngaged={onWidgetEngaged} onRetry={() => onWidgetRetry(action)} />
+          <Anchors ids={action.anchors} thread={thread} label="Mirrors" />
         </Card>
       );
     case "end":

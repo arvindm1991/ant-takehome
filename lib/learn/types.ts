@@ -26,6 +26,7 @@ export type LearnAction =
     }
   | { kind: "hint"; text: string; topicId: string; anchors: string[] }
   | { kind: "explain"; text: string; topicId: string; anchors: string[] }
+  | { kind: "demonstrate"; id: string; title: string; spec: string; topicId: string; anchors: string[] }
   | { kind: "end"; recap: string };
 
 /** What the learner sees in the panel, in order. */
@@ -39,6 +40,10 @@ export type FeedEntry =
 
 export type SessionTrigger = "live" | "post_task" | "refresher" | "contextual";
 
+export type WidgetState = { status: "building" | "ready" | "error"; html?: string; error?: string; generated?: boolean };
+
+export type WidgetRequest = { title: string; spec: string; topicId: string; trajectory: TrajectoryItem[] };
+
 export type LearnSession = {
   id: string;
   threadId: string;
@@ -47,6 +52,7 @@ export type LearnSession = {
   topics: Topic[];
   objective: Objective | null;
   feed: FeedEntry[];
+  widgets: Record<string, WidgetState>;
   busy: boolean;
   ended: boolean;
   startedAt: number;

@@ -1,5 +1,6 @@
 // Scripted learning-agent behaviour for mock mode (no API key). Mirrors what the real
 // LSA is prompted to do for the primary demo (auth page), so the UI path is identical.
+import { MOCK_WIDGETS } from "./widgets/mock";
 import type { GradeRequest, GradeResult, LearnAction, LearnRequest, Learnability, TrajectoryItem } from "./types";
 
 const AUTH_RE = /auth|login|jwt|sign.?in/i;
@@ -49,17 +50,17 @@ const PREDICT: Record<string, { question: string; anchorTitle: string; rubric: s
 
 const WHAT_IF: Record<string, { question: string; anchorTitle: string; rubric: string }> = {
   jwt: {
-    question: "What if `verifyToken()` checked the signature but skipped `exp`? What could an attacker do?",
+    question: "Use the lab: set the attacker to **edit the payload**, then drag **expires** into the past as the server. Now imagine `verifyToken()` checked the signature but skipped `exp`: what could someone with a stolen token do?",
     anchorTitle: "lib/auth.ts",
     rubric: "A stolen token would work forever; expiry limits the window of a leaked token. Mentions replay / indefinite validity.",
   },
   "password-hashing": {
-    question: "Claude used cost factor 12. What happens to an attacker, and to your login endpoint, if you raise it to 16?",
+    question: "Drag the cost from 12 to 16. What happens to the attacker, and what happens to your own login endpoint?",
     anchorTitle: "lib/auth.ts",
     rubric: "Each +1 doubles the work: 16 is ~16x slower for attackers but also for every login (seconds per request, DoS risk).",
   },
   "token-storage": {
-    question: "The cookie is `SameSite=Lax`. What kind of attack does that help with, beyond XSS?",
+    question: "Try both attacks against the httpOnly cookie. XSS is limited, but what does `SameSite=Lax` protect against, and how?",
     anchorTitle: "app/api/login/route.ts",
     rubric: "CSRF: the cookie isn't sent on cross-site POSTs, so other sites can't make authenticated requests.",
   },
@@ -117,7 +118,11 @@ export function mockAct(r: LearnRequest): LearnAction[] {
       }
       if (lastProbe?.mode === "predict" || lastProbe?.mode === "explain_back") {
         const w = WHAT_IF[topic];
-        return [{ kind: "probe", id: pid("whatif"), mode: "what_if", format: "free_text", question: w.question, options: [], topicId: topic, anchors: [find(t, w.anchorTitle)].filter(Boolean) as string[], rubric: w.rubric }];
+        const widget = MOCK_WIDGETS[topic];
+        return [
+          ...(widget ? [{ kind: "demonstrate" as const, id: pid("widget"), title: widget.title, spec: widget.spec, topicId: topic, anchors: [find(t, w.anchorTitle)].filter(Boolean) as string[] }] : []),
+          { kind: "probe", id: pid("whatif"), mode: "what_if", format: "free_text", question: w.question, options: [], topicId: topic, anchors: [find(t, w.anchorTitle)].filter(Boolean) as string[], rubric: w.rubric },
+        ];
       }
       return [{ kind: "end", recap: recapFor(topic) }];
     }

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EndSessionInput, ExplainInput, HintInput, ProbeInput, SuggestObjectivesInput } from "./schema";
+import { DemonstrateInput, EndSessionInput, ExplainInput, HintInput, ProbeInput, SuggestObjectivesInput } from "./schema";
 import type { LearnAction } from "./types";
 
 const jsonSchema = (s: z.ZodType) => {
@@ -13,10 +13,17 @@ export const LSA_TOOLS = [
   { name: "probe", description: "Ask the learner one question (approach, predict, explain_back or what_if).", input_schema: jsonSchema(ProbeInput) },
   { name: "hint", description: "Nudge after a wrong or partial answer without revealing it.", input_schema: jsonSchema(HintInput) },
   { name: "explain", description: "Short explanation grounded in the main agent's actual code.", input_schema: jsonSchema(ExplainInput) },
+  {
+    name: "demonstrate",
+    description:
+      "Request an interactive widget (sliders, toggles, live output) that lets the learner manipulate the concept using the main agent's actual values. 'spec' describes what to show and which values/code to ground it in; a separate builder generates it.",
+    input_schema: jsonSchema(DemonstrateInput),
+  },
   { name: "end_session", description: "Wrap up with a one-line recap.", input_schema: jsonSchema(EndSessionInput) },
 ];
 
 let seq = 0;
+const actionId = (p: string) => `${p}${Date.now().toString(36)}${(seq++).toString(36)}`;
 const probeId = () => `p${Date.now().toString(36)}${(seq++).toString(36)}`;
 
 /** Validate a tool call and convert it to a LearnAction; null if malformed. */
@@ -37,6 +44,10 @@ export function toAction(name: string, input: unknown): LearnAction | null {
     case "explain": {
       const r = ExplainInput.safeParse(input);
       return r.success ? { kind: "explain", ...r.data } : null;
+    }
+    case "demonstrate": {
+      const r = DemonstrateInput.safeParse(input);
+      return r.success ? { kind: "demonstrate", id: actionId("w"), ...r.data } : null;
     }
     case "end_session": {
       const r = EndSessionInput.safeParse(input);

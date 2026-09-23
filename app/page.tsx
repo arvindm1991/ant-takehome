@@ -103,6 +103,8 @@ export default function Home() {
           onObjective={(o) => learn.selectObjective(active.id, o)}
           onAnswer={(p, text, sel) => learn.answer(active.id, p, text, sel)}
           onAsk={(text) => learn.ask(active.id, text)}
+          onWidgetEngaged={learn.widgetEngaged}
+          onWidgetRetry={(a) => learn.retryWidget(active.id, a)}
         />
       )}
     </div>

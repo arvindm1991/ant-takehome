@@ -11,13 +11,14 @@ How you teach:
 - Pre-empt. While the main agent is still working, ask about what it is about to do: "approach" questions (where would you look, what would you check first) and "predict" questions about upcoming steps. Teach the reasoning behind an approach, never the mechanics of the agent's tool calls.
 - Never reveal the content of trajectory items marked NOT YET SHOWN; you may reference them by title only ("Claude is about to write verifyToken()…").
 - No verdicts on the main agent's work. You lack its full context (sources, repo history). If something looks off, ask the user a question about it instead of declaring it wrong.
-- Brief. At most one question per turn. Messages ≤ 90 words. Use the user's level from the strategy.
+- Brief. At most one question per turn (a demonstrate + probe pair counts as one). Messages ≤ 90 words. Use the user's level from the strategy.
 
 Tools:
 - suggest_objectives: 2–3 learning objectives drawn from this task. Level-up framing, never remedial.
 - probe: ask one question. For mode "approach" with format "mcq", options must be real paths from the repo tree (5–6 options, a mix of relevant and irrelevant files); leave rubric describing what a good choice looks like. For free_text, the rubric is the answer key the grader will use; ground it in the trajectory.
 - hint: nudge after a wrong/partial answer without giving the answer away.
 - explain: a short grounded explanation using the main agent's actual code.
+- demonstrate: an interactive widget when the concept has a knob worth turning (a parameter, a toggle, an attack to try). Ground the spec in the main agent's actual values. Pair it with a probe in the same turn that asks the learner to use the widget to answer. At most once per session.
 - end_session: one-line recap when the objective is covered.
 
 Topic ids: reuse ids from <learner_state> known topics whenever the concept matches, so memory accumulates; otherwise use short kebab-case ids. Approach questions (where to look, how to orient) use topicId "codebase-orientation". Don't suggest objectives for topics already mastered (estimate ≥ 0.9); prefer the next level up. If the learner has an open misconception on the objective's topic, target it.
@@ -47,6 +48,7 @@ function formatFeed(feed: FeedEntry[]): string {
           if (a.kind === "probe") return `YOU asked [probe ${a.id}, ${a.mode}, topic ${a.topicId}]: ${a.question}${a.options.length ? ` Options: ${a.options.join(", ")}` : ""}`;
           if (a.kind === "objectives") return `YOU suggested objectives: ${a.objectives.map((o) => o.label).join("; ")}`;
           if (a.kind === "end") return `YOU ended the session: ${a.recap}`;
+          if (a.kind === "demonstrate") return `YOU showed an interactive widget: ${a.title}`;
           return `YOU (${a.kind}): ${a.text}`;
         }
         case "answer":
@@ -152,7 +154,7 @@ export function selectStrategy(
   if (objective) {
     const e = objective.estimate;
     if (objective.openMisconceptions.length) lines.push(`Open misconception on this topic (${objective.openMisconceptions.join(", ")}): target it with a contrasting what_if.`);
-    else if (e == null || e < 0.3) lines.push("Learner is new to this topic: keep questions concrete; a brief explain before a harder probe is fine.");
+    else if (e == null || e < 0.4) lines.push("Learner is new to this topic: keep questions concrete; a brief explain or a demonstrate (with a probe that uses it) before a harder probe is fine.");
     else if (e < 0.7) lines.push("Learner is developing on this topic: predict/what_if first; hint on a miss; explain only after two misses.");
     else lines.push("Learner is strong on this topic: one stretch/transfer question, or move to an adjacent topic (interleave).");
   }

@@ -5,10 +5,14 @@ import { GradeOutput, LearnabilityOutput } from "./schema";
 import { buildLearnContext, formatTrajectory, LSA_SYSTEM } from "./prompt";
 import { LSA_TOOLS, toAction } from "./tools";
 import { mockAct, mockGrade, mockLearnability } from "./mock";
-import type { GradeRequest, GradeResult, LearnAction, LearnRequest, Learnability } from "./types";
+import type { GradeRequest, GradeResult, LearnAction, LearnRequest, Learnability, WidgetRequest } from "./types";
+import { MOCK_WIDGETS } from "./widgets/mock";
+import { WIDGET_PALETTE } from "./widgets/base";
+import { extractHtml } from "./widgets/frame";
 
 export const LEARN_MODEL = process.env.LEARN_MODEL || "claude-sonnet-5";
 export const GRADER_MODEL = process.env.GRADER_MODEL || "claude-sonnet-5";
+export const WIDGET_MODEL = process.env.WIDGET_MODEL || "claude-opus-5";
 export const CLASSIFIER_MODEL = process.env.CLASSIFIER_MODEL || "claude-haiku-4-5";
 
 export const isMock = () => !process.env.ANTHROPIC_API_KEY || process.env.MOCK_LEARN === "1";
@@ -90,4 +94,40 @@ export async function classify(prompt: string, known: { id: string; label: strin
     ],
   });
   return res.parsed_output ?? { learnable: false, topics: [] };
+}
+
+const WIDGET_SYSTEM = `You build small interactive teaching widgets that run inside a sandboxed iframe (scripts allowed; no network, no same-origin, no storage, no alerts/prompts/forms that submit).
+
+Output ONE complete, self-contained HTML document and nothing else: inline <style> and <script>, no external resources, no imports.
+- Purpose: let a learner manipulate a concept (sliders, toggles, inputs, buttons) and see the consequence immediately. It must be genuinely interactive, not a static explainer.
+- Ground it in the provided code from the coding agent: use its actual names, values and choices (e.g. its cost factor, token lifetime, cookie flags). Mention the file/function it mirrors in a one-line subtitle.
+- Correctness matters: simulations must reflect how the real mechanism behaves; label illustrative numbers as illustrative.
+- Compact: under ~220 lines, fits 400px wide, no fixed heights, body padding 14px.
+- Dark theme palette: ${JSON.stringify(WIDGET_PALETTE)}. System UI font 13.5px; monospace for code/tokens.
+- Accessible labels on controls. Initial state should already show something meaningful.`;
+
+export async function buildWidget(req: WidgetRequest): Promise<{ html: string; generated: boolean }> {
+  if (isMock()) {
+    await new Promise((r) => setTimeout(r, 1200));
+    const w = MOCK_WIDGETS[req.topicId];
+    if (!w) throw new Error("Mock mode only has pre-built widgets for the auth demo topics.");
+    return { html: w.html, generated: false };
+  }
+  const client = new Anthropic();
+  const code = req.trajectory
+    .filter((i) => i.kind === "file" || i.kind === "plan")
+    .map((i) => `<item title="${i.title}">\n${i.content.slice(0, 4000)}\n</item>`)
+    .join("\n");
+  const res = await client.messages.create({
+    model: WIDGET_MODEL,
+    max_tokens: 16000,
+    output_config: { effort: "low" },
+    system: WIDGET_SYSTEM,
+    messages: [{ role: "user", content: `<widget title="${req.title}">\n${req.spec}\n</widget>\n\n<agent_code>\n${code}\n</agent_code>` }],
+  });
+  if (res.stop_reason === "refusal") throw new Error("The widget builder declined this request.");
+  const text = res.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
+  const html = extractHtml(text);
+  if (!/<(script|input|button)/i.test(html)) throw new Error("Widget builder returned no interactive HTML.");
+  return { html, generated: true };
 }

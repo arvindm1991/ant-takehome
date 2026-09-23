@@ -158,6 +158,28 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
     [mutate],
   );
 
+  const buildWidget = useCallback(
+    async (threadId: string, action: Extract<LearnAction, { kind: "demonstrate" }>) => {
+      const setW = (w: LearnSession["widgets"][string]) => mutate(threadId, (s) => ({ ...s, widgets: { ...s.widgets, [action.id]: w } }));
+      const s = sessionsRef.current[threadId];
+      const thread = threadsRef.current.find((t) => t.id === threadId);
+      if (!s || !thread) return;
+      setW({ status: "building" });
+      try {
+        const r = await post<{ html: string; generated: boolean }>("/api/learn/widget", {
+          title: action.title,
+          spec: action.spec,
+          topicId: action.topicId,
+          trajectory: trajectoryFor(thread, s.messageId),
+        });
+        setW({ status: "ready", html: r.html, generated: r.generated });
+      } catch (err) {
+        setW({ status: "error", error: err instanceof Error ? err.message : String(err) });
+      }
+    },
+    [mutate],
+  );
+
   const run = useCallback(
     async (threadId: string, event: LearnEvent) => {
       const s = sessionsRef.current[threadId];
@@ -186,6 +208,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
         const now = Date.now();
         append(threadId, ...actions.map((action, i): FeedEntry => ({ kind: "action", action, at: now + i })));
         updateMemory((m) => actions.reduce((acc, a) => (a.kind === "objectives" || a.kind === "end" ? acc : bump(acc, "shown", a.kind)), m));
+        for (const a of actions) if (a.kind === "demonstrate") void buildWidget(threadId, a);
         const end = actions.find((a) => a.kind === "end");
         if (end) {
           mutate(threadId, (x) => ({ ...x, ended: true }));
@@ -200,7 +223,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
         mutate(threadId, (x) => ({ ...x, busy: false }));
       }
     },
-    [append, mutate],
+    [append, mutate, buildWidget],
   );
 
   const start = useCallback(
@@ -235,6 +258,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
           topics,
           objective: null,
           feed: [],
+          widgets: {},
           busy: false,
           ended: false,
           startedAt: Date.now(),
@@ -325,8 +349,12 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
     [append, run],
   );
 
+  const widgetEngaged = useCallback(() => updateMemory((m) => bump(m, "engaged", "demonstrate")), []);
+
   return {
     session: sessions[activeThreadId] ?? null,
+    widgetEngaged,
+    retryWidget: (threadId: string, action: Extract<LearnAction, { kind: "demonstrate" }>) => void buildWidget(threadId, action),
     sessions,
     learnability: (threadId: string, messageId: string) => learnability[key(threadId, messageId)],
     panelOpen,

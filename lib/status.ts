@@ -5,6 +5,7 @@ export type DeployStatus = {
   mainAgent: { live: boolean; model: string };
   learningAgent: { live: boolean; model: string };
   grader: { model: string };
+  widgetBuilder: { model: string };
   classifier: { model: string };
 };
 
