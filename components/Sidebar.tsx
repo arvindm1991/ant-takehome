@@ -1,8 +1,6 @@
 "use client";
-import { useState } from "react";
-import { ACME_NOTES, REPO_NAME } from "@/lib/repo/acmeNotes";
+import { ChevronDown, Clock, FolderKanban, Plus, Search, Shapes, SlidersHorizontal, Wrench } from "lucide-react";
 import type { Thread } from "@/lib/thread/types";
-import { PrototypeNote } from "./PrototypeNote";
 
 type Props = {
   threads: Thread[];
@@ -11,63 +9,75 @@ type Props = {
   onNew: () => void;
 };
 
+// Static entries so the list reads like a real, lived-in account.
+const PAST_CHATS = ["Interactive atom learning tool", "Explaining a complex topic simply", "Chrome extension for audio transcription"];
+
+const NAV = [
+  { icon: FolderKanban, label: "Projects" },
+  { icon: Shapes, label: "Artifacts" },
+  { icon: Clock, label: "Scheduled" },
+  { icon: Wrench, label: "Customize" },
+  { icon: ChevronDown, label: "More", muted: true },
+];
+
 export function Sidebar({ threads, activeId, onSelect, onNew }: Props) {
-  const [openFile, setOpenFile] = useState<string | null>(null);
-  const file = ACME_NOTES.find((f) => f.path === openFile);
+  const started = threads.filter((t) => t.items.length > 0);
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border bg-sidebar">
-      <div className="p-3">
+    <aside className="flex h-full w-[272px] shrink-0 flex-col border-r border-border bg-sidebar">
+      <nav className="flex flex-col gap-0.5 px-2 pt-4">
         <button
           onClick={onNew}
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-left text-sm font-medium hover:border-muted"
+          className="flex items-center gap-3 rounded-lg bg-raised px-3 py-2 text-left text-[15px] text-text hover:bg-raised/80"
         >
-          + New chat
+          <Plus size={17} strokeWidth={1.75} /> New
         </button>
-      </div>
-
-      <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">Chats &amp; tasks</div>
-      <nav className="max-h-[35%] overflow-y-auto px-2">
-        {threads.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => onSelect(t.id)}
-            className={`block w-full truncate rounded-md px-2 py-1.5 text-left text-sm ${
-              t.id === activeId ? "bg-surface font-medium shadow-sm" : "text-text/80 hover:bg-surface/60"
-            }`}
+        {NAV.map(({ icon: Icon, label, muted }) => (
+          <div
+            key={label}
+            className={`flex cursor-default items-center gap-3 rounded-lg px-3 py-1.5 text-[15px] ${muted ? "text-muted" : "text-text/90"}`}
           >
-            {t.title}
-          </button>
+            <Icon size={17} strokeWidth={1.75} /> {label}
+          </div>
         ))}
       </nav>
 
-      <div className="mt-4 flex min-h-0 flex-1 flex-col border-t border-border px-3 pt-3">
-        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
-          Repository · {REPO_NAME}
-        </div>
-        <ul className="min-h-0 flex-1 overflow-y-auto font-mono text-xs">
-          {ACME_NOTES.map((f) => (
-            <li key={f.path}>
-              <button
-                onClick={() => setOpenFile(openFile === f.path ? null : f.path)}
-                className={`w-full truncate rounded px-1.5 py-1 text-left hover:bg-surface ${
-                  openFile === f.path ? "bg-surface" : ""
-                }`}
-              >
-                {f.path}
-              </button>
-            </li>
-          ))}
-        </ul>
-        {file && (
-          <pre className="mb-2 max-h-48 overflow-auto rounded border border-border bg-surface p-2 font-mono text-[10.5px] leading-snug">
-            {file.content}
-          </pre>
-        )}
-        <div className="pb-3">
-          <PrototypeNote>this is a simulated repository given to the agent as context.</PrototypeNote>
-        </div>
+      <div className="mt-6 flex items-center justify-between px-5 pb-2 text-[13.5px] text-muted">
+        <span>Chats and tasks</span>
+        <span className="flex gap-3">
+          <Search size={15} />
+          <SlidersHorizontal size={15} />
+        </span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-2">
+        {started.map((t) => (
+          <ChatRow key={t.id} label={t.title} active={t.id === activeId} onClick={() => onSelect(t.id)} />
+        ))}
+        {PAST_CHATS.map((label) => (
+          <ChatRow key={label} label={label} dim />
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2.5 border-t border-border px-4 py-3 text-[15px]">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-raised text-[11px] font-medium">AM</span>
+        <span>Arvind</span>
+        <span className="text-[13px] text-muted">· Pro</span>
       </div>
     </aside>
+  );
+}
+
+function ChatRow({ label, active, dim, onClick }: { label: string; active?: boolean; dim?: boolean; onClick?: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={!onClick}
+      className={`flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-[15px] ${
+        active ? "bg-raised text-text" : dim ? "cursor-default text-text/60" : "text-text/90 hover:bg-raised/60"
+      }`}
+    >
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full border border-muted" />
+      <span className="truncate">{label}</span>
+    </button>
   );
 }

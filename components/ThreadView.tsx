@@ -24,7 +24,7 @@ export function ThreadView({ thread }: { thread: Thread }) {
         return (
           <div key={p.id} className="flex flex-col gap-3">
             <Item item={p}>
-              <div className="ml-auto max-w-[85%] rounded-2xl bg-sidebar px-4 py-2.5 text-[15px]">{p.content}</div>
+              <div className="ml-auto max-w-[85%] rounded-2xl bg-raised px-4 py-2.5 text-[15.5px]">{p.content}</div>
             </Item>
             {turn && <AssistantBlock turn={turn} items={items} />}
           </div>
@@ -53,7 +53,7 @@ function AssistantBlock({ turn, items }: { turn: AssistantTurn; items: ThreadIte
         <div className="shimmer px-1 text-sm font-medium">{workingLabel(next)}</div>
       )}
       {turn.status === "error" && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <div className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">
           Something went wrong: {turn.error}
         </div>
       )}
@@ -132,7 +132,7 @@ function Step({ item }: { item: ThreadItem }) {
     case "note":
     case "answer":
       return (
-        <div className={item.kind === "answer" ? "prose-md px-1 text-[15px] leading-relaxed" : "rounded-lg border border-border bg-surface px-4 py-3"}>
+        <div className={item.kind === "answer" ? "prose-md px-1 font-serif text-[17px] leading-relaxed" : "rounded-lg border border-border bg-surface px-4 py-3"}>
           {item.kind !== "answer" && (
             <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{item.title}</div>
           )}

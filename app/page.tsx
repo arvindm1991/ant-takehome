@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Composer } from "@/components/Composer";
+import { Composer, SuggestionList } from "@/components/Composer";
 import { Sidebar } from "@/components/Sidebar";
 import { ThreadView } from "@/components/ThreadView";
 import { TopBar } from "@/components/TopBar";
@@ -12,34 +12,47 @@ export default function Home() {
 
   const busy = active.turns.some((t) => t.status === "thinking" || t.status === "revealing");
   const simulated = threads.some((t) => t.turns.some((x) => x.simulated));
+  const empty = active.items.length === 0;
 
   return (
     <div className="flex h-full">
       <Sidebar threads={threads} activeId={activeId} onSelect={setActiveId} onNew={newChat} />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <main className="relative flex min-w-0 flex-1 flex-col">
         <TopBar learnOn={learnOn} onToggleLearn={() => setLearnOn((v) => !v)} dueCount={0} simulated={simulated} />
-        <main className="flex min-h-0 flex-1">
-          <section className="flex min-w-0 flex-1 flex-col">
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              {active.items.length === 0 ? (
-                <EmptyState />
-              ) : (
-                <ThreadView thread={active} />
-              )}
+        {empty ? (
+          <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-6 pt-[22vh]">
+            <h1 className="mb-10 flex items-center gap-3 font-serif text-[46px] font-light tracking-tight">
+              <Spark /> Back at it, Arvind
+            </h1>
+            <div className="w-full max-w-[720px]">
+              <Composer onSend={send} disabled={busy} variant="hero" />
+              <div className="mt-12">
+                <SuggestionList onPick={send} />
+              </div>
             </div>
-            <Composer onSend={send} disabled={busy} />
-          </section>
-        </main>
-      </div>
+          </div>
+        ) : (
+          <>
+            <div className="min-h-0 flex-1 overflow-y-auto pt-14">
+              <ThreadView thread={active} />
+            </div>
+            <div className="mx-auto w-full max-w-3xl px-6 pb-4">
+              <Composer onSend={send} disabled={busy} variant="docked" />
+            </div>
+          </>
+        )}
+      </main>
     </div>
   );
 }
 
-function EmptyState() {
+/** Generic 8-point spark: a nod to the reference, not the Claude logo. */
+function Spark() {
   return (
-    <div className="mx-auto flex h-full max-w-xl flex-col items-center justify-center gap-2 px-6 text-center">
-      <h1 className="text-2xl font-semibold">What should Claude work on in acme-notes?</h1>
-      <p className="text-sm text-muted">Click the input to see suggested tasks.</p>
-    </div>
+    <svg width="34" height="34" viewBox="0 0 24 24" aria-hidden className="text-accent">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <rect key={i} x="11" y="1.5" width="2" height="9" rx="1" fill="currentColor" transform={`rotate(${i * 45} 12 12)`} />
+      ))}
+    </svg>
   );
 }
