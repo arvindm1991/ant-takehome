@@ -4,7 +4,14 @@ import ReactMarkdown from "react-markdown";
 import type { AssistantTurn, Thread, ThreadItem } from "@/lib/thread/types";
 import { PrototypeNote } from "./PrototypeNote";
 
-export function ThreadView({ thread }: { thread: Thread }) {
+export type ThreadSlots = {
+  /** Rendered under a user prompt (e.g. the learn-mode chip). */
+  afterPrompt?: (messageId: string) => React.ReactNode;
+  /** Rendered after a finished assistant turn. */
+  afterTurn?: (messageId: string) => React.ReactNode;
+};
+
+export function ThreadView({ thread, slots }: { thread: Thread; slots?: ThreadSlots }) {
   const bottom = useRef<HTMLDivElement>(null);
   const revealedCount = thread.items.filter((i) => i.revealed).length;
   const lastReasoningLen = thread.items.findLast((i) => i.kind === "reasoning")?.content.length ?? 0;
@@ -26,7 +33,9 @@ export function ThreadView({ thread }: { thread: Thread }) {
             <Item item={p}>
               <div className="ml-auto max-w-[85%] rounded-2xl bg-raised px-4 py-2.5 text-[15.5px]">{p.content}</div>
             </Item>
+            {slots?.afterPrompt?.(messageId)}
             {turn && <AssistantBlock turn={turn} items={items} />}
+            {slots?.afterTurn?.(messageId)}
           </div>
         );
       })}

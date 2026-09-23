@@ -1,24 +1,65 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Composer, SuggestionList } from "@/components/Composer";
+import { LearnPanel } from "@/components/learn/LearnPanel";
+import { LiveLearnChip, PostTaskLearnChip } from "@/components/learn/LearnChips";
 import { Sidebar } from "@/components/Sidebar";
-import { ThreadView } from "@/components/ThreadView";
+import { ThreadView, type ThreadSlots } from "@/components/ThreadView";
 import { TopBar } from "@/components/TopBar";
+import { useLearn } from "@/lib/learn/useLearn";
 import { useThreads } from "@/lib/thread/useThreads";
 
 export default function Home() {
-  const { threads, active, activeId, setActiveId, newChat, send } = useThreads();
-  const [learnOn, setLearnOn] = useState(false);
+  // The main thread only exposes a generic "prompt sent" observer; learn mode subscribes to it.
+  const onPromptSent = useRef<(threadId: string, messageId: string, prompt: string) => void>(undefined);
+  const { threads, active, activeId, setActiveId, newChat, send } = useThreads({
+    onPromptSent: (t, m, p) => onPromptSent.current?.(t, m, p),
+  });
+  const learn = useLearn(threads, activeId);
+  useEffect(() => {
+    onPromptSent.current = learn.onPromptSent;
+  });
 
   const busy = active.turns.some((t) => t.status === "thinking" || t.status === "revealing");
   const simulated = threads.some((t) => t.turns.some((x) => x.simulated));
   const empty = active.items.length === 0;
+  const session = learn.session;
+
+  // Latest learnable turn in this thread without a learning session yet.
+  const canStart = useMemo(() => {
+    const turn = active.turns.at(-1);
+    if (!turn) return null;
+    const lb = learn.learnability(active.id, turn.messageId);
+    if (!lb?.learnable || session?.messageId === turn.messageId) return null;
+    return { messageId: turn.messageId, trigger: turn.status === "done" ? ("post_task" as const) : ("live" as const) };
+  }, [active, learn, session]);
+
+  const toggleLearn = () => {
+    if (learn.panelOpen) return learn.setPanelOpen(false);
+    learn.setPanelOpen(true);
+    if (canStart) learn.start(active.id, canStart.messageId, canStart.trigger);
+  };
+
+  const slots: ThreadSlots = {
+    afterPrompt: (messageId) => {
+      const lb = learn.learnability(active.id, messageId);
+      const turn = active.turns.find((t) => t.messageId === messageId);
+      if (!lb?.learnable || turn?.status === "done" || session?.messageId === messageId) return null;
+      return <LiveLearnChip topics={lb.topics} onClick={() => learn.start(active.id, messageId, "live")} />;
+    },
+    afterTurn: (messageId) => {
+      const lb = learn.learnability(active.id, messageId);
+      const turn = active.turns.find((t) => t.messageId === messageId);
+      if (!lb?.learnable || turn?.status !== "done" || session?.messageId === messageId) return null;
+      return <PostTaskLearnChip onClick={() => learn.start(active.id, messageId, "post_task")} />;
+    },
+  };
 
   return (
     <div className="flex h-full">
       <Sidebar threads={threads} activeId={activeId} onSelect={setActiveId} onNew={newChat} />
       <main className="relative flex min-w-0 flex-1 flex-col">
-        <TopBar learnOn={learnOn} onToggleLearn={() => setLearnOn((v) => !v)} dueCount={0} simulated={simulated} />
+        <TopBar learnOn={learn.panelOpen} onToggleLearn={toggleLearn} dueCount={0} simulated={simulated} />
         {empty ? (
           <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-6 pt-[22vh]">
             <h1 className="mb-10 flex items-center gap-3 font-serif text-[46px] font-light tracking-tight">
@@ -34,7 +75,7 @@ export default function Home() {
         ) : (
           <>
             <div className="min-h-0 flex-1 overflow-y-auto pt-14">
-              <ThreadView thread={active} />
+              <ThreadView thread={active} slots={slots} />
             </div>
             <div className="mx-auto w-full max-w-3xl px-6 pb-4">
               <Composer onSend={send} disabled={busy} variant="docked" />
@@ -42,6 +83,19 @@ export default function Home() {
           </>
         )}
       </main>
+      {learn.panelOpen && (
+        <LearnPanel
+          thread={active}
+          session={session}
+          canStart={canStart}
+          error={learn.error}
+          onClose={() => learn.setPanelOpen(false)}
+          onStart={(m, t) => learn.start(active.id, m, t)}
+          onObjective={(o) => learn.selectObjective(active.id, o)}
+          onAnswer={(p, text, sel) => learn.answer(active.id, p, text, sel)}
+          onAsk={(text) => learn.ask(active.id, text)}
+        />
+      )}
     </div>
   );
 }

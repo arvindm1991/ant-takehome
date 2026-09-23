@@ -13,7 +13,12 @@ const newThread = (): Thread => ({
   turns: [],
 });
 
-export function useThreads() {
+export type UseThreadsOptions = {
+  /** Generic hook for observers (e.g. learn mode); the main agent is unaware of them. */
+  onPromptSent?: (threadId: string, messageId: string, prompt: string) => void;
+};
+
+export function useThreads(opts: UseThreadsOptions = {}) {
   const [threads, setThreads] = useState<Thread[]>(() => [newThread()]);
   const [activeId, setActiveId] = useState<string>(() => threads[0].id);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -85,6 +90,8 @@ export function useThreads() {
         turns: [...t.turns, { messageId, status: "thinking" }],
       }));
 
+      opts.onPromptSent?.(threadId, messageId, prompt);
+
       const onEvent = (e: MainEvent) => {
         if (e.type === "thinking") {
           update(threadId, (t) => ({
@@ -149,7 +156,7 @@ export function useThreads() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [active, update, patchTurn],
+    [active, update, patchTurn, opts.onPromptSent],
   );
 
   function scheduleReveal(threadId: string, messageId: string, items: ThreadItem[], steps: MainStep[]) {
