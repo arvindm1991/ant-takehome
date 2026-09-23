@@ -1,22 +1,21 @@
 "use client";
 import { Bell, GraduationCap } from "lucide-react";
+import type { DeployStatus } from "@/lib/status";
+import { ModeBadge } from "./ModeBadge";
 
 type Props = {
   learnOn: boolean;
   onToggleLearn: () => void;
   dueCount: number;
-  simulated: boolean;
+  status: DeployStatus | null;
 };
 
 /** Floating top-right controls: the persistent Learn-mode toggle + refresher badge (SPEC §6). */
-export function TopBar({ learnOn, onToggleLearn, dueCount, simulated }: Props) {
+export function TopBar({ learnOn, onToggleLearn, dueCount, status }: Props) {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-bg from-60% to-transparent px-5 pt-3 pb-5">
-      <span className="pointer-events-auto flex items-center gap-2">
-        <span className="rounded-full border border-note/40 px-2 py-0.5 text-[11px] font-medium tracking-wide text-note">
-          PROTOTYPE
-        </span>
-        {simulated && <span className="text-[11px] text-muted">mock mode: no API key</span>}
+      <span className="pointer-events-auto">
+        <ModeBadge status={status} />
       </span>
       <div className="pointer-events-auto flex items-center gap-2">
         <button

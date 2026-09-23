@@ -68,8 +68,9 @@ function AssistantBlock({ turn, items }: { turn: AssistantTurn; items: ThreadIte
       )}
       {turn.complexity === "task" && turn.status !== "error" && (
         <PrototypeNote>
-          steps are revealed at a simulated agent pace; the real agent loop (tool calls) is out of scope for this
-          prototype.{turn.simulated ? " This response is scripted (mock mode, no API key configured)." : ""}
+          {turn.simulated
+            ? "scripted response: this deployment has no API key, so the main agent is mocked. Steps are revealed at a simulated agent pace."
+            : "reasoning and output are live from the Claude API. Only the step-by-step reveal is paced to simulate a longer agent run; no tools actually ran."}
         </PrototypeNote>
       )}
     </div>

@@ -10,6 +10,7 @@ import { focusThreadItem } from "@/lib/thread/focus";
 type Props = {
   thread: Thread;
   session: LearnSession | null;
+  simulated: boolean;
   canStart: { messageId: string; trigger: "live" | "post_task" } | null;
   error: string | null;
   onClose: () => void;
@@ -19,7 +20,7 @@ type Props = {
   onAsk: (text: string) => void;
 };
 
-export function LearnPanel({ thread, session, canStart, error, onClose, onStart, onObjective, onAnswer, onAsk }: Props) {
+export function LearnPanel({ thread, session, simulated, canStart, error, onClose, onStart, onObjective, onAnswer, onAsk }: Props) {
   const feed = session ? deriveFeed(session, thread) : [];
   const bottom = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -38,7 +39,10 @@ export function LearnPanel({ thread, session, canStart, error, onClose, onStart,
       <header className="flex items-center gap-2 border-b border-border px-4 pt-3.5 pb-2">
         <GraduationCap size={17} className="text-learn" />
         <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-medium">Learning</div>
+          <div className="flex items-center gap-2 text-[14px] font-medium">
+            Learning
+            {simulated && <span className="rounded-full bg-note-soft px-1.5 py-0.5 text-[10.5px] font-normal text-note">scripted mock</span>}
+          </div>
           <div className="truncate text-[12px] text-muted">{thread.title}</div>
         </div>
         <button onClick={onClose} aria-label="Close learning panel" className="rounded-md p-1 text-muted hover:bg-raised hover:text-text">

@@ -8,6 +8,7 @@ import { ThreadView, type ThreadSlots } from "@/components/ThreadView";
 import { TopBar } from "@/components/TopBar";
 import { useLearn } from "@/lib/learn/useLearn";
 import { useThreads } from "@/lib/thread/useThreads";
+import { useDeployStatus } from "@/lib/status";
 
 export default function Home() {
   // The main thread only exposes a generic "prompt sent" observer; learn mode subscribes to it.
@@ -16,12 +17,12 @@ export default function Home() {
     onPromptSent: (t, m, p) => onPromptSent.current?.(t, m, p),
   });
   const learn = useLearn(threads, activeId);
+  const status = useDeployStatus();
   useEffect(() => {
     onPromptSent.current = learn.onPromptSent;
   });
 
   const busy = active.turns.some((t) => t.status === "thinking" || t.status === "revealing");
-  const simulated = threads.some((t) => t.turns.some((x) => x.simulated));
   const empty = active.items.length === 0;
   const session = learn.session;
 
@@ -59,7 +60,7 @@ export default function Home() {
     <div className="flex h-full">
       <Sidebar threads={threads} activeId={activeId} onSelect={setActiveId} onNew={newChat} />
       <main className="relative flex min-w-0 flex-1 flex-col">
-        <TopBar learnOn={learn.panelOpen} onToggleLearn={toggleLearn} dueCount={0} simulated={simulated} />
+        <TopBar learnOn={learn.panelOpen} onToggleLearn={toggleLearn} dueCount={0} status={status} />
         {empty ? (
           <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-6 pt-[22vh]">
             <h1 className="mb-10 flex items-center gap-3 font-serif text-[46px] font-light tracking-tight">
@@ -87,6 +88,7 @@ export default function Home() {
         <LearnPanel
           thread={active}
           session={session}
+          simulated={status ? !status.learningAgent.live : false}
           canStart={canStart}
           error={learn.error}
           onClose={() => learn.setPanelOpen(false)}
