@@ -47,18 +47,23 @@ A **learning sub-agent** that rides alongside Claude's main agent in regular Cla
 | D11 | **Real Claude call for the MA, pacing mocked**, labelled with a visible *Prototype note* | Honest demo of agent-length work without building a full agent loop. Reviewers can type their own tasks. |
 | D12 | Demo scenario: **"Build an auth page"** (JWT, password hashing, refresh tokens) | Concrete, clear sub-topics, natural interactive widget (JWT decoder). |
 | D13 | Stack: **Next.js on Vercel**, API key server-side, learner memory in `localStorage` | Fast to build, easy for reviewers to use. |
+| D14 | **LSA pre-empts the MA.** It starts from the user's prompt, predicts what the MA's work will involve, and asks the learner to reason ahead (incl. *approach* questions like "which files would you look at?"). As MA items arrive it **cross-verifies** its predictions and the learner's answers against them | Real agents spend most of their time on tool calls and source gathering, which is lookahead the LSA can use. We teach the *reasoning* behind the approach, never the tool calls themselves. |
+| D15 | **MA reasoning is streamed for real** (summarized thinking) while it works; only the reveal of the final steps is paced | Honest, chat-app-like experience during the 30–60 s wait. The stream also gives the LSA early signal. |
+| D16 | **Widgets are generated freely by Opus** (sliders and interactive HTML). **Quizzes (MCQ, etc.) use templates** | Opus reliably builds small interactive HTML. Templates keep assessments consistent and gradeable. We pre-test on the demo path. |
+| D17 | **Prototype polish focuses on one journey: the auth page.** Other suggested tasks work but aren't tuned | The brief asks for depth on one interaction pattern. The design is general; the demo is specific. |
 
 ## 5. User journeys
 
 ### J1 — Live: learn while the agent works (primary demo)
 1. The user picks the suggested task "Build a login page with JWT auth for my Next.js app" and sends it.
-2. The MA starts working. Steps appear one by one (plan, then files, then notes) at a paced speed. A *Prototype note* explains the pacing.
+2. The MA starts working. Its summarized reasoning streams live (real), then steps appear one by one (plan, then files, then notes) at a paced speed. A *Prototype note* explains the pacing.
 3. Under the user's prompt a chip appears: **"🎓 Learn while Claude builds this: JWT auth, password hashing"**. It appears only if the task is learnable and the topics aren't already mastered (§11).
 4. The user clicks it. `learnMode` turns on, the right panel opens (3-panel layout) and the LSA offers 2–3 **suggested learning objectives** (e.g. *How JWTs are structured and signed*, *Why bcrypt and not SHA-256*, *Refresh-token rotation*).
-5. The user picks one. The LSA opens with a **prediction probe anchored to an upcoming step**: *"Claude is about to write `verifyToken()`. Before it does: which parts of a JWT does the server need to check, and why?"*
-6. The user answers. The grader scores the answer, memory updates, and the LSA gives short feedback that **links to the MA step** where the answer is revealed (anchor ↗ scrolls and highlights that step).
-7. The LSA follows with a supporting move chosen by mastery (e.g. `demonstrate` renders an interactive **JWT decoder/tamper widget** built from the token format the MA actually used).
-8. The session ends when the objective is covered, or when the user closes the panel. An episode is written to memory.
+5. The user picks one. The LSA **pre-empts the MA** (D14). While the MA is still reasoning, it asks an *approach* question, often as multiple choice: *"If you were building this in an existing Next.js repo, which files would you look at first?"* (options: `middleware.ts`, `package.json`, `app/layout.tsx`, `.env`, `README.md`…). When the MA's own steps arrive, the LSA shows which files the MA actually went to and why.
+6. Next, a **prediction probe anchored to an upcoming step**: *"Claude is about to write `verifyToken()`. Before it does: which parts of a JWT does the server need to check, and why?"*
+7. The user answers. The grader scores the answer, memory updates, and the LSA gives short feedback that **links to the MA step** where the answer is revealed (anchor ↗ scrolls and highlights that step).
+8. The LSA follows with a supporting move chosen by mastery (e.g. `demonstrate` renders an interactive **JWT decoder/tamper widget** built from the token format the MA actually used).
+9. The session ends when the objective is covered, or when the user closes the panel. An episode is written to memory.
 
 ### J2 — Post-task: learn before you review
 1. The MA finishes (fast task, or the user ignored the live chip).
@@ -151,6 +156,7 @@ type ThreadItem = {
 |---|---|---|
 | Main agent | `claude-opus-5` | Adaptive thinking; structured output of steps. Server-side refusal fallbacks enabled. |
 | Learning agent | `claude-sonnet-5` | Tool loop; cheaper per D5 and cost at scale (§15). |
+| Widget builder | `claude-opus-5` | Generates `demonstrate` HTML from the LSA's widget spec (D16). |
 | Grader | `claude-sonnet-5` | Structured output, rubric-based. |
 | Learnability / pacing classifier | `claude-haiku-4-5` | Single short call; can be merged into the MA call if latency allows. |
 
@@ -162,7 +168,8 @@ type ThreadItem = {
     steps: Array<{ kind, title, content, lang? }>,   // 1 step if trivial
     summary: string }
   ```
-- **Pacing (mocked, D11):** the client reveals steps on a schedule. There's a thinking shimmer before each step, and the delay depends on the step's kind and size (roughly 1.5–6 s; `file` steps take longer). `trivial` means reveal immediately with no pacing. A *Prototype note* is attached to paced responses: *"Steps are revealed at a simulated agent pace. The real agent loop is out of scope for this prototype."*
+- **Reasoning stream (real, D15):** the call streams with `thinking: {type: "adaptive", display: "summarized"}`. Summarized reasoning renders live in a collapsible "Thinking…" block at the top of the MA response (like current chat apps) and is stored as a `reasoning` thread item. The LSA can read it as it arrives.
+- **Pacing (mocked, D11):** once the final structured output arrives, the client reveals steps on a schedule. There's a thinking shimmer before each step, and the delay depends on the step's kind and size (roughly 1.5–6 s; `file` steps take longer). `trivial` means reveal immediately with no pacing. A *Prototype note* is attached to paced responses: *"Steps are revealed at a simulated agent pace. The real agent loop is out of scope for this prototype."*
 - The **full response is available before reveal** (because pacing is mocked). The LSA may see unrevealed items, which gives it the lookahead that a real agent's plan would provide (§9.4).
 - The MA system prompt is plain "helpful coding assistant". **No mention of learning.**
 
@@ -188,11 +195,15 @@ All tool outputs render in the panel. Every tool takes `anchors: string[]` (thre
 | Tool | Purpose | Key input |
 |---|---|---|
 | `suggest_objectives` | Offer 2–3 objectives drawn from the trajectory, excluding mastered topics | `objectives[{topicId, label, why}]` |
-| `probe` | **Core loop.** Ask a prediction, explain-back or what-if question. Waits for the user's answer | `question, mode: predict\|explain_back\|what_if, topicId, anchors, rubric` |
+| `probe` | **Core loop.** Ask an approach, prediction, explain-back or what-if question. Waits for the user's answer | `question, mode: approach\|predict\|explain_back\|what_if, format: free_text\|mcq, options?, topicId, anchors, rubric` |
 | `hint` | Scaffold after a wrong or partial answer, or on request. Never gives the answer | `hint, topicId, anchors` |
 | `explain` | Short, grounded explanation (≤120 words) using the MA's actual code | `explanation, topicId, anchors` |
-| `demonstrate` | Generate a self-contained interactive widget (HTML/JS) grounded in the MA's artifact, e.g. a JWT decoder or hash-timing demo | `title, html, topicId, anchors` |
+| `demonstrate` | Request an interactive widget grounded in the MA's artifact, e.g. a JWT decoder/tamper tool or a bcrypt cost-factor slider. The HTML is **generated by Opus** in a separate call (D16) | `title, spec, topicId, anchors` |
 | `end_session` | Wrap up: one-line recap plus what's next | `recap, nextTopicIds` |
+
+**Pre-emption (D14).** Before or early in the MA run, the LSA works from the user prompt plus the streamed reasoning. It predicts which sub-problems, files and decisions the MA will touch, and uses `approach`/`predict` probes on them. Each prediction is stored as a *pending expectation* and **cross-verified** when the matching MA item arrives: the LSA confirms or corrects both its own expectation and the learner's answer, anchored to the real item. Approach questions are about *where to look and why*, not about tool mechanics.
+
+**Formats:** `mcq` probes render from a template (options, single/multi select, reveal-with-anchor) and are graded deterministically where possible. `free_text` probes go to the grader.
 
 The `probe` rubric is written by the LSA and passed to the grader, so the answer key comes from the trajectory.
 
@@ -205,6 +216,7 @@ The `probe` rubric is written by the LSA and passed to the grader, so the answer
 | open misconception | Target it directly with a contrasting what_if probe |
 
 ### 9.4 Behavioral rules (system prompt)
+- **Never teach tool mechanics.** Ask about the reasoning behind an approach (where to look, what to check), not about which tool the MA called.
 - **Never reveal an unrevealed item's content.** Predict probes reference upcoming items by title only ("Claude is about to write `verifyToken()`…").
 - **Question-first, no verdicts on the MA's work.** Frame design choices as "why do you think it chose X over Y?" (D8).
 - **Grounded:** refer to the MA's actual identifiers, files and values. No generic tutorials.
@@ -213,6 +225,8 @@ The `probe` rubric is written by the LSA and passed to the grader, so the answer
 
 ### 9.5 Triggers (when the LSA runs)
 - Learn mode is enabled (live or post-task), leading to `suggest_objectives`.
+- **The user prompt is sent while learn mode is on.** The LSA starts pre-emption immediately, in parallel with the MA (D14).
+- A reasoning chunk arrives. Batched, it is used only to refine pending expectations and never shown verbatim.
 - The user picks an objective or replies.
 - A **new MA item is revealed** while a session is active. The LSA may choose to act (e.g. follow-up on a prediction now revealed). It's debounced and runs at most once per revealed item.
 - A refresher card is opened.
@@ -289,6 +303,8 @@ Guardrails: at most **one** inline nudge per task, always dismissible. Three con
 4. Implement a debounced search box in React
 5. What's the capital of France? *(shows J4: no pacing, no chip)*
 
+Only #1 is tuned and pre-tested end to end (D17). The others run through the same pipeline untuned.
+
 ## 13. Instrumentation (product analytics)
 
 Events go to an in-app event log (a debug drawer, plus `console`). A real build would send them to the analytics pipeline.
@@ -307,6 +323,8 @@ Specified here. A small harness (`evals/`) is a stretch goal. Each is an LLM-jud
 | **Anchor validity** | Anchors exist and are relevant to the message (code check plus judge). |
 | **Grader agreement** | Grader verdicts vs a small human-labelled set (target ≥ 85% agreement). |
 | **Misprint edge case (D8)** | Seed MA outputs with (a) real mistakes and (b) apparent mistakes that are correct given the sources. Measure confident false claims by the LSA (target ≈ 0) and how often a real mistake is surfaced as a question. |
+| **Pre-emption accuracy** | Share of LSA expectations that match what the MA actually did; approach MCQ options are plausible and the correct ones are grounded in MA items. |
+| **Widget reliability** | Generated widgets render without errors and the interaction works (pre-tested on the demo path). |
 | **Restraint** | Trivial tasks produce no chip; mastered topics are not re-suggested. |
 
 ## 15. Success metrics
@@ -351,20 +369,39 @@ evals/                     # stretch
 
 | M | Scope | Done when |
 |---|---|---|
-| M1 | Shell + MA | Suggested tasks; real MA call; steps revealed with pacing plus a prototype note; trivial tasks instant; item IDs visible in the DOM |
-| M2 | LSA core loop | Learnability chip; learn toggle opens panel; objectives; predict probe anchored to an upcoming step; answer graded; feedback anchors scroll and highlight |
+| M1 | Shell + MA | Suggested tasks; real MA call with streamed summarized reasoning; steps revealed with pacing plus a prototype note; trivial tasks instant; item IDs visible in the DOM |
+| M2 | LSA core loop | Learnability chip; learn toggle opens panel; objectives; pre-emptive approach MCQ, cross-verified when MA steps arrive; predict probe anchored to an upcoming step; answer graded; feedback anchors scroll and highlight |
 | M3 | Memory | Mastery/evidence/episodes/misconceptions persisted; Memory drawer shows mastery bars and timeline |
-| M4 | Supporting moves | hint / explain / demonstrate (JWT widget in a sandboxed iframe); post-task entry (J2) |
+| M4 | Supporting moves | hint / explain / demonstrate (Opus-generated JWT/bcrypt widgets in a sandboxed iframe); MCQ template; post-task entry (J2) |
 | M5 | Refreshers | +3 days control; badge and Inbox; open a card to start a new session on the old thread; contextual chip on a related task |
 | M6 | Polish & ship | Instrumentation log; deploy to Vercel; README; seeded demo path verified end to end |
 | M7 | Stretch | Eval harness for groundedness / no-leak / misprint; discovery `?arm=` |
 
-## 19. Out of scope (v1)
+## 19. Considered, not built: the Mind-Map tab
 
-A real agent loop and tool calls in the MA · the mind-map tab (D7) · accounts and server-side memory · a special "MA made a mistake" flow (D8) · multi-user/shared state · mobile layout beyond basic responsiveness.
+![Mind-map concept](docs/mindmap-concept.svg)
 
-## 20. Open questions
+The original whiteboard had a second panel tab: a live **mind map of the MA's work**, with nodes for the plan, sources consulted, decisions and files, growing as the agent works. It is the most "follow-along" way to show agent work.
 
-1. MA latency: Opus 5 generating a multi-file auth flow may take 30–60 s before the first reveal. Do we accept that (it's realistic), stream the plan step first, or use a faster model for the demo?
-2. Should the parked Map tab ship as a hidden `?arm=map` variant for the A/B story, or be documented only?
-3. Should the widget (`demonstrate`) be fully generated per session, or template-assisted for reliability in the demo?
+**Why it's parked (D7):**
+- It's a *passive* surface. It gives the product the feeling of having taught without evidence the learner learned.
+- Given the choice, most users follow along instead of engaging. Merging it with the learning tab ("click a node to learn") doesn't help, because most users won't click.
+- It competes with the active loop for attention during the same idle window.
+
+**When we'd revisit it:** as an A/B arm against the active loop, measured on the north star (§15), not on engagement. It may earn its place for users who opt out of active learning but still want to understand what the agent did before reviewing it.
+
+## 20. Design process note
+
+The brainstorm was run with several frontier models (Claude, OpenAI, Google, Meta). **All of them converged on roughly the same first idea:** put the user in the driver's seat inside the task by pausing the agent at decision points ("forks"), asking the user to choose, and running with their choice. Claude's first proposal in this repo's transcript was exactly that.
+
+We rejected it. It caps output quality at the learner's skill, fills the working agent's context with the learner's uncertain choices, and makes the model execute approaches it wouldn't choose. It also presumes users want friction in their day-to-day tool, which the distribution argument (§2) says they don't. The final design (a read-only, isolated learning sub-agent with the user as front-seat passenger) came from pushing back on that shared default. The sparring is preserved in the transcript.
+
+## 21. Out of scope (v1)
+
+A real agent loop and tool calls in the MA · the mind-map tab (D7, §19) · accounts and server-side memory · a special "MA made a mistake" flow (D8) · multi-user/shared state · mobile layout beyond basic responsiveness.
+
+## 22. Open questions
+
+*Resolved:* MA latency of 30–60 s is accepted, with the reasoning streamed (D15). The Map tab is documented only (§19). Widgets are generated and quizzes templated (D16).
+
+1. MCQ answer key for `approach` probes: in a real repo the MA's file reads are ground truth. In the prototype (no real repo) the MA's plan and file steps serve as the key. Is that acceptable for the demo?
