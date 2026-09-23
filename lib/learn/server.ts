@@ -73,7 +73,7 @@ ${formatTrajectory(req.trajectory)}
   return { ...out, revealAnchors: out.revealAnchors.filter((id) => ids.has(id)) };
 }
 
-export async function classify(prompt: string): Promise<Learnability> {
+export async function classify(prompt: string, known: { id: string; label: string }[] = []): Promise<Learnability> {
   if (isMock()) return mockLearnability(prompt);
   const client = new Anthropic();
   const res = await client.messages.parse({
@@ -82,7 +82,12 @@ export async function classify(prompt: string): Promise<Learnability> {
     output_config: { format: zodOutputFormat(LearnabilityOutput) },
     system:
       "Decide whether a request to a coding/knowledge assistant contains transferable skills worth learning (engineering concepts, techniques, trade-offs). Quick factual lookups and chit-chat are not learnable. Return up to 3 short topic labels (2–4 words) with kebab-case ids.",
-    messages: [{ role: "user", content: prompt }],
+    messages: [
+      {
+        role: "user",
+        content: `${known.length ? `Topics this learner has studied before (reuse these exact ids when the concept matches): ${known.map((k) => `${k.label} [${k.id}]`).join(", ")}\n\n` : ""}Request: ${prompt}`,
+      },
+    ],
   });
   return res.parsed_output ?? { learnable: false, topics: [] };
 }

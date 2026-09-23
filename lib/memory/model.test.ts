@@ -1,0 +1,64 @@
+import { describe, expect, it } from "vitest";
+import { applyEvidence, applyReviewOutcome, DAY, INTERVAL_DAYS, learnerStateFor, nextEstimate, PRIOR, scheduleReview } from "./model";
+import { emptyMemory } from "./types";
+import type { EvidenceInput } from "./model";
+
+const ev = (over: Partial<EvidenceInput> = {}): EvidenceInput => ({
+  id: `p1#1`,
+  topicId: "jwt",
+  sessionId: "s1",
+  threadId: "t1",
+  threadItemRefs: [],
+  probe: "q",
+  mode: "predict",
+  answer: "a",
+  verdict: "correct",
+  hinted: false,
+  ...over,
+});
+
+describe("mastery update (SPEC §10.1)", () => {
+  it("moves toward the target by α", () => {
+    expect(nextEstimate(PRIOR, "correct", "predict", false)).toBeCloseTo(0.3 + 0.35 * 0.7, 3);
+    expect(nextEstimate(0.5, "incorrect", "explain_back", false)).toBeCloseTo(0.375, 3);
+    expect(nextEstimate(0.5, "partial", "what_if", false)).toBeCloseTo(0.5, 3);
+  });
+  it("gives less credit when hinted", () => {
+    expect(nextEstimate(PRIOR, "correct", "predict", true)).toBeLessThan(nextEstimate(PRIOR, "correct", "predict", false));
+  });
+  it("records evidence idempotently and normalizes topic ids", () => {
+    let m = applyEvidence(emptyMemory(), ev({ topicId: "JWT Auth" }));
+    m = applyEvidence(m, ev({ topicId: "JWT Auth" }));
+    expect(m.evidence).toHaveLength(1);
+    expect(m.mastery["jwt-auth"].attempts).toBe(1);
+  });
+  it("tracks and resolves misconceptions", () => {
+    let m = applyEvidence(emptyMemory(), ev({ verdict: "incorrect", misconceptionTag: "payload-is-encrypted" }));
+    expect(m.misconceptions[0].resolved).toBe(false);
+    m = { ...m, timeOffsetMs: 1000 };
+    m = applyEvidence(m, ev({ id: "p2#1", verdict: "correct" }));
+    expect(m.misconceptions[0].resolved).toBe(true);
+  });
+});
+
+describe("spaced repetition (SPEC §10.2)", () => {
+  it("schedules the first review a day out, then advances on correct and resets on incorrect", () => {
+    let m = scheduleReview(applyEvidence(emptyMemory(), ev()), ["jwt"]);
+    const due1 = m.mastery.jwt.nextDue! - Date.now();
+    expect(Math.round(due1 / DAY)).toBe(INTERVAL_DAYS[0]);
+    m = applyReviewOutcome(m, "jwt", "correct");
+    expect(Math.round((m.mastery.jwt.nextDue! - Date.now()) / DAY)).toBe(INTERVAL_DAYS[1]);
+    m = applyReviewOutcome(m, "jwt", "incorrect");
+    expect(m.mastery.jwt.intervalIdx).toBe(0);
+  });
+});
+
+describe("learner state for the LSA context", () => {
+  it("reports bands, misconceptions and recent evidence", () => {
+    const m = applyEvidence(emptyMemory(), ev({ verdict: "incorrect", misconceptionTag: "x" }));
+    const s = learnerStateFor(m, ["jwt", "password-hashing"]);
+    expect(s.topics[0]).toMatchObject({ id: "jwt", attempts: 1, openMisconceptions: ["x"] });
+    expect(s.topics[1]).toMatchObject({ id: "password-hashing", estimate: null, band: "new" });
+    expect(s.evidence).toHaveLength(1);
+  });
+});

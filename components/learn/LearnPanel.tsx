@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { ArrowUp, BookOpen, Check, CircleHelp, Compass, FlaskConical, GraduationCap, Lightbulb, Loader2, Sparkles, X } from "lucide-react";
 import { deriveFeed } from "@/lib/learn/useLearn";
+import { ProgressView } from "./ProgressView";
 import type { FeedEntry, LearnAction, LearnSession, Objective, ProbeMode, Verdict } from "@/lib/learn/types";
 import type { Thread } from "@/lib/thread/types";
 import { focusThreadItem } from "@/lib/thread/focus";
@@ -21,6 +22,7 @@ type Props = {
 };
 
 export function LearnPanel({ thread, session, simulated, canStart, error, onClose, onStart, onObjective, onAnswer, onAsk }: Props) {
+  const [tab, setTab] = useState<"session" | "progress">("session");
   const feed = session ? deriveFeed(session, thread) : [];
   const bottom = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -50,12 +52,21 @@ export function LearnPanel({ thread, session, simulated, canStart, error, onClos
         </button>
       </header>
       <div className="flex gap-4 border-b border-border px-4 text-[13px]">
-        <span className="border-b-2 border-learn py-2 font-medium">Session</span>
-        <span className="py-2 text-muted" title="Refreshers arrive in a later milestone">
+        {(["session", "progress"] as const).map((t) => (
+          <button key={t} onClick={() => setTab(t)} className={`border-b-2 py-2 capitalize ${tab === t ? "border-learn font-medium" : "border-transparent text-muted hover:text-text"}`}>
+            {t === "progress" ? "Your progress" : "Session"}
+          </button>
+        ))}
+        <span className="py-2 text-muted/60" title="Refreshers arrive in a later milestone">
           Inbox
         </span>
       </div>
 
+      {tab === "progress" ? (
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          <ProgressView activeThreadId={thread.id} />
+        </div>
+      ) : (
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {!session && <EmptyPanel canStart={canStart} onStart={onStart} />}
         {session &&
@@ -79,8 +90,9 @@ export function LearnPanel({ thread, session, simulated, canStart, error, onClos
         {error && <div className="rounded-lg border border-danger/40 bg-danger-soft px-3 py-2 text-[13px] text-danger">{error}</div>}
         <div ref={bottom} />
       </div>
+      )}
 
-      {session && <AskBox onAsk={onAsk} disabled={session.busy} />}
+      {session && tab === "session" && <AskBox onAsk={onAsk} disabled={session.busy} />}
     </aside>
   );
 }

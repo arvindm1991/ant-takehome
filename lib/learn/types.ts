@@ -70,8 +70,16 @@ export type TrajectoryItem = {
   revealed: boolean;
 };
 
+/** Learner memory slice for the LSA (built by lib/memory/model.learnerStateFor). */
+export type LearnerStateView = {
+  topics: { id: string; label: string; estimate: number | null; attempts: number; band: string; openMisconceptions: string[] }[];
+  evidence: { topicId: string; mode: ProbeMode; verdict: Verdict; hinted: boolean; probe: string; answer: string; daysAgo: number }[];
+  knownTopics: { id: string; label: string; estimate: number | null }[];
+};
+
 export type LearnRequest = {
   event: LearnEvent;
+  learner: LearnerStateView;
   userPrompt: string;
   mainAgentStatus: "working" | "done";
   trajectory: TrajectoryItem[];

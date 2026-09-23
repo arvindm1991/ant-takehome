@@ -76,17 +76,15 @@ export function mockAct(r: LearnRequest): LearnAction[] {
   }
 
   switch (e.type) {
-    case "session_start":
-      return [
-        {
-          kind: "objectives",
-          objectives: [
+    case "session_start": {
+      const mastered = new Set(r.learner.knownTopics.filter((k) => (k.estimate ?? 0) >= 0.9).map((k) => k.id));
+      const objectives = [
             { topicId: "jwt", label: "How JWTs are signed and verified", why: "Claude's middleware trusts a token on every request. Know what makes that safe." },
             { topicId: "password-hashing", label: "Why bcrypt, not SHA-256", why: "Claude hashes passwords before storing them; the choice of hash matters." },
             { topicId: "token-storage", label: "Where the token lives (cookie vs localStorage)", why: "One line in the login route decides your XSS exposure." },
-          ],
-        },
-      ];
+      ].filter((o) => !mastered.has(o.topicId));
+      return [{ kind: "objectives", objectives: objectives.length ? objectives : [{ topicId: "refresh-rotation", label: "Refresh-token rotation (next level)", why: "You've got the basics down. This is what Claude listed as the follow-up." }] }];
+    }
     case "objective_selected":
       return [
         {
@@ -99,7 +97,7 @@ export function mockAct(r: LearnRequest): LearnAction[] {
               ? "Before you read Claude's changes: if you'd done this yourself, which files in acme-notes would you have opened first? Pick up to 3."
               : "While Claude gets oriented: which files in acme-notes would you open first before adding login? Pick up to 3.",
           options: ["package.json", "lib/db.ts", "app/api/notes/route.ts", "app/globals.css", "app/page.tsx", "public/logo.svg"],
-          topicId: "approach",
+          topicId: "codebase-orientation",
           anchors: [],
           rubric: "Dependencies (package.json), the user model (lib/db.ts), and what needs protecting (app/api/notes/route.ts).",
         },

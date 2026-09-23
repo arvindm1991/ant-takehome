@@ -3,7 +3,7 @@
 Education Labs take-home (Option B). A **learning sub-agent** rides alongside Claude's main agent inside regular Claude: it watches the main agent's work with read-only access and turns it into short, grounded learning moments, without interrupting or influencing the task.
 
 - Design & decisions: [`SPEC.md`](SPEC.md)
-- Status: **M2**: main agent (streamed reasoning + paced steps over a simulated repo) and the learning sub-agent core loop (objectives → approach MCQ cross-checked against the agent's real reads → predict/explain-back → graded feedback with anchors → hint/what-if → recap). Memory, widgets and refreshers land in M3–M5.
+- Status: **M3**: main agent (streamed reasoning + paced steps over a simulated repo); learning sub-agent core loop (objectives → approach MCQ cross-checked against the agent's real reads → predict/explain-back → graded feedback with anchors → hint/what-if → recap); learner memory (mastery, evidence timeline, misconceptions, episodes, review schedule) feeding the agent's context and a Progress view. Widgets and refreshers land in M4–M5.
 
 ## Run locally
 

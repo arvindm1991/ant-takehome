@@ -9,6 +9,9 @@ import { TopBar } from "@/components/TopBar";
 import { useLearn } from "@/lib/learn/useLearn";
 import { useThreads } from "@/lib/thread/useThreads";
 import { useDeployStatus } from "@/lib/status";
+import { useMemory } from "@/lib/memory/store";
+import { estimateOf, normalizeTopicId } from "@/lib/memory/model";
+import type { Learnability } from "@/lib/learn/types";
 
 export default function Home() {
   // The main thread only exposes a generic "prompt sent" observer; learn mode subscribes to it.
@@ -18,6 +21,10 @@ export default function Home() {
   });
   const learn = useLearn(threads, activeId);
   const status = useDeployStatus();
+  const memory = useMemory();
+  // SPEC §11: suggest learning only if some topic isn't mastered yet.
+  const worthSuggesting = (lb?: Learnability) =>
+    !!lb?.learnable && (lb.topics.length === 0 || lb.topics.some((t) => (estimateOf(memory, normalizeTopicId(t.id)) ?? 0) < 0.7));
   useEffect(() => {
     onPromptSent.current = learn.onPromptSent;
   });
@@ -45,13 +52,13 @@ export default function Home() {
     afterPrompt: (messageId) => {
       const lb = learn.learnability(active.id, messageId);
       const turn = active.turns.find((t) => t.messageId === messageId);
-      if (!lb?.learnable || turn?.status === "done" || session?.messageId === messageId) return null;
+      if (!worthSuggesting(lb) || turn?.status === "done" || session?.messageId === messageId) return null;
       return <LiveLearnChip topics={lb.topics} onClick={() => learn.start(active.id, messageId, "live")} />;
     },
     afterTurn: (messageId) => {
       const lb = learn.learnability(active.id, messageId);
       const turn = active.turns.find((t) => t.messageId === messageId);
-      if (!lb?.learnable || turn?.status !== "done" || session?.messageId === messageId) return null;
+      if (!worthSuggesting(lb) || turn?.status !== "done" || session?.messageId === messageId) return null;
       return <PostTaskLearnChip onClick={() => learn.start(active.id, messageId, "post_task")} />;
     },
   };

@@ -1,7 +1,7 @@
 // LSA system prompt + context assembly (SPEC §9.1, §9.4).
 //   context = system + curriculum + learner state + objective + main-agent trajectory
 //           + recent interaction + relevant evidence + pedagogical strategy + tools
-import type { FeedEntry, LearnRequest, TrajectoryItem } from "./types";
+import type { FeedEntry, LearnRequest, LearnerStateView, TrajectoryItem } from "./types";
 
 export const LSA_SYSTEM = `You are the learning companion inside Claude. A separate main agent is doing the user's task; you watch its work (read-only) and help the user genuinely understand it, like a mentor standing beside someone watching an expert glass-blower work. You never influence the main agent and the user is never blocked by you.
 
@@ -19,6 +19,8 @@ Tools:
 - hint: nudge after a wrong/partial answer without giving the answer away.
 - explain: a short grounded explanation using the main agent's actual code.
 - end_session: one-line recap when the objective is covered.
+
+Topic ids: reuse ids from <learner_state> known topics whenever the concept matches, so memory accumulates; otherwise use short kebab-case ids. Approach questions (where to look, how to orient) use topicId "codebase-orientation". Don't suggest objectives for topics already mastered (estimate ≥ 0.9); prefer the next level up. If the learner has an open misconception on the objective's topic, target it.
 
 Respond only by calling tools (usually exactly one). Never write text outside tool calls.`;
 
@@ -86,8 +88,12 @@ Task topics: ${r.topics.map((t) => `${t.label} [${t.id}]`).join(", ") || "(unkno
 </curriculum>
 
 <learner_state>
-No prior evidence recorded for these topics (new learner for this material).
+${formatLearner(r.learner)}
 </learner_state>
+
+<relevant_evidence>
+${formatEvidence(r.learner)}
+</relevant_evidence>
 
 <objective>${r.objective ? `${r.objective.label} [${r.objective.topicId}]: ${r.objective.why}` : "(not chosen yet)"}</objective>
 
@@ -110,8 +116,30 @@ ${formatFeed(r.feed)}
 <event>${describeEvent(r)}</event>`;
 }
 
-/** Code-selected strategy (SPEC §9.3). Mastery bands arrive with learner memory (M3). */
-export function selectStrategy(feed: FeedEntry[], mainAgentStatus: "working" | "done"): string {
+function formatLearner(l: LearnerStateView): string {
+  const lines = l.topics.map((t) => {
+    const est = t.estimate == null ? "no evidence yet" : `mastery ~${t.estimate.toFixed(2)} (${t.band}, ${t.attempts} attempts)`;
+    const mis = t.openMisconceptions.length ? `; open misconceptions: ${t.openMisconceptions.join(", ")}` : "";
+    return `- ${t.label} [${t.id}]: ${est}${mis}`;
+  });
+  const others = l.knownTopics.filter((k) => !l.topics.some((t) => t.id === k.id));
+  if (others.length) lines.push(`Other known topics: ${others.map((k) => `${k.label} [${k.id}]${k.estimate != null ? ` ~${k.estimate.toFixed(2)}` : ""}`).join(", ")}`);
+  return lines.join("\n") || "(new learner: no memory yet)";
+}
+
+function formatEvidence(l: LearnerStateView): string {
+  if (l.evidence.length === 0) return "(none)";
+  return l.evidence
+    .map((e) => `- [${e.topicId}] ${e.mode}, ${e.daysAgo}d ago: ${e.verdict}${e.hinted ? " (after hint)" : ""}. Q: ${e.probe.slice(0, 140)} A: ${e.answer.slice(0, 160)}`)
+    .join("\n");
+}
+
+/** Code-selected strategy (SPEC §9.3): mastery band of the objective + in-session signals. */
+export function selectStrategy(
+  feed: FeedEntry[],
+  mainAgentStatus: "working" | "done",
+  objective?: { estimate: number | null; openMisconceptions: string[] },
+): string {
   const graded = feed.filter((e) => e.kind === "feedback" || e.kind === "reveal") as Extract<FeedEntry, { verdict: unknown }>[];
   const last = graded.at(-1);
   const misses = graded.filter((g) => g.verdict !== "correct").length;
@@ -121,6 +149,13 @@ export function selectStrategy(feed: FeedEntry[], mainAgentStatus: "working" | "
       ? "Phase: pre-emption. The main agent is still working; ask approach/predict questions about upcoming work."
       : "Phase: review. Everything is visible; use explain_back and what_if questions about the finished work.",
   ];
+  if (objective) {
+    const e = objective.estimate;
+    if (objective.openMisconceptions.length) lines.push(`Open misconception on this topic (${objective.openMisconceptions.join(", ")}): target it with a contrasting what_if.`);
+    else if (e == null || e < 0.3) lines.push("Learner is new to this topic: keep questions concrete; a brief explain before a harder probe is fine.");
+    else if (e < 0.7) lines.push("Learner is developing on this topic: predict/what_if first; hint on a miss; explain only after two misses.");
+    else lines.push("Learner is strong on this topic: one stretch/transfer question, or move to an adjacent topic (interleave).");
+  }
   if (last?.verdict === "incorrect" || last?.verdict === "partial") {
     lines.push(misses >= 2 ? "The learner has missed twice: give a short explain, then one easier question." : "Last answer was not fully right: give a hint, not the answer.");
   } else if (last?.verdict === "correct") {

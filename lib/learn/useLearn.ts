@@ -3,12 +3,15 @@
 // never writes to it (SPEC §7.1).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ACME_NOTES } from "@/lib/repo/acmeNotes";
+import { applyEvidence, bump, ensureTopics, estimateOf, learnerStateFor, normalizeTopicId, scheduleReview, snapshot, upsertEpisode } from "@/lib/memory/model";
+import { getMemory, updateMemory } from "@/lib/memory/store";
 import type { Thread } from "@/lib/thread/types";
 import { crossCheckApproach, readsComplete } from "./mcq";
 import { selectStrategy } from "./prompt";
 import type {
   FeedEntry,
   GradeResult,
+  Verdict,
   LearnAction,
   LearnEvent,
   LearnRequest,
@@ -22,6 +25,51 @@ import type {
 type Probe = Extract<LearnAction, { kind: "probe" }>;
 
 const key = (threadId: string, messageId: string) => `${threadId}:${messageId}`;
+
+const ORIENTATION = { id: "codebase-orientation", label: "Orienting in a codebase" };
+
+function topicLabel(s: LearnSession, topicId: string) {
+  const id = normalizeTopicId(topicId);
+  if (id === ORIENTATION.id) return ORIENTATION.label;
+  if (s.objective && normalizeTopicId(s.objective.topicId) === id) return s.objective.label;
+  return s.topics.find((t) => normalizeTopicId(t.id) === id)?.label ?? topicId;
+}
+
+function sessionTopicIds(s: LearnSession) {
+  return [...new Set([...s.topics.map((t) => t.id), ...(s.objective ? [s.objective.topicId] : []), ORIENTATION.id].map(normalizeTopicId))];
+}
+
+/** Write one graded attempt to learner memory, reschedule review and refresh the episode. */
+function recordEvidence(s: LearnSession, thread: Thread, probe: Probe, answer: string, verdict: Verdict, misconceptionTag: string, anchors: string[]) {
+  const probeAt = s.feed.find((e) => e.kind === "action" && e.action === probe)?.at ?? 0;
+  const attempt = s.feed.filter((e) => e.kind === "answer" && e.probeId === probe.id).length;
+  const hinted = s.feed.some((e) => e.kind === "action" && e.action.kind === "hint" && e.at > probeAt);
+  const topicId = normalizeTopicId(probe.topicId);
+  updateMemory((m) => {
+    let next = applyEvidence(m, {
+      id: `${probe.id}#${Math.max(1, attempt)}`,
+      topicId,
+      topicLabel: topicLabel(s, topicId),
+      sessionId: s.id,
+      threadId: thread.id,
+      threadItemRefs: [...new Set([...probe.anchors, ...anchors])],
+      probe: probe.question,
+      mode: probe.mode,
+      answer,
+      verdict,
+      hinted,
+      misconceptionTag: misconceptionTag || undefined,
+    });
+    if (next === m) return m;
+    next = scheduleReview(next, [topicId]);
+    const ep = next.episodes.find((e) => e.id === s.id);
+    if (ep) {
+      const topicIds = [...new Set([...ep.topicIds, topicId])];
+      next = upsertEpisode(next, { ...ep, topicIds, masteryAfter: { ...ep.masteryAfter, ...snapshot(next, [topicId]) }, masteryBefore: { [topicId]: estimateOf(m, topicId), ...ep.masteryBefore } });
+    }
+    return bump(next, "engaged", "probe");
+  });
+}
 
 export function trajectoryFor(thread: Thread, messageId: string): TrajectoryItem[] {
   return thread.items
@@ -85,6 +133,19 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
     learnOnRef.current = panelOpen;
   });
 
+  // Approach MCQs resolve when the main agent finishes reading; record them to memory then.
+  useEffect(() => {
+    for (const s of Object.values(sessions)) {
+      const thread = threads.find((t) => t.id === s.threadId);
+      if (!thread) continue;
+      for (const e of deriveFeed(s, thread)) {
+        if (e.kind !== "reveal") continue;
+        const probe = findProbe(s.feed, e.probeId);
+        if (probe) recordEvidence(s, thread, probe, e.picked.join(", "), e.verdict, "", e.actual.map((a) => a.itemId));
+      }
+    }
+  }, [sessions, threads]);
+
   const mutate = useCallback((threadId: string, fn: (s: LearnSession) => LearnSession) => {
     const cur = sessionsRef.current[threadId];
     if (!cur) return;
@@ -104,8 +165,11 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
       if (!s || !thread) return;
       const feed = deriveFeed(s, thread);
       const mainAgentStatus = turnDone(thread, s.messageId) ? "done" : "working";
+      const learner = learnerStateFor(getMemory(), sessionTopicIds(s));
+      const objTopic = s.objective && learner.topics.find((t) => t.id === normalizeTopicId(s.objective!.topicId));
       const req: LearnRequest = {
         event,
+        learner,
         userPrompt: thread.items.find((i) => i.messageId === s.messageId.replace("m", "u"))?.content ?? "",
         mainAgentStatus,
         trajectory: trajectoryFor(thread, s.messageId),
@@ -113,7 +177,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
         topics: s.topics,
         objective: s.objective,
         feed,
-        strategy: selectStrategy(feed, mainAgentStatus),
+        strategy: selectStrategy(feed, mainAgentStatus, objTopic ? { estimate: objTopic.estimate, openMisconceptions: objTopic.openMisconceptions } : undefined),
       };
       mutate(threadId, (x) => ({ ...x, busy: true }));
       setError(null);
@@ -121,7 +185,15 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
         const { actions } = await post<{ actions: LearnAction[] }>("/api/learn", req);
         const now = Date.now();
         append(threadId, ...actions.map((action, i): FeedEntry => ({ kind: "action", action, at: now + i })));
-        if (actions.some((a) => a.kind === "end")) mutate(threadId, (x) => ({ ...x, ended: true }));
+        updateMemory((m) => actions.reduce((acc, a) => (a.kind === "objectives" || a.kind === "end" ? acc : bump(acc, "shown", a.kind)), m));
+        const end = actions.find((a) => a.kind === "end");
+        if (end) {
+          mutate(threadId, (x) => ({ ...x, ended: true }));
+          updateMemory((m) => {
+            const ep = m.episodes.find((e) => e.id === s.id);
+            return ep ? upsertEpisode(m, { ...ep, endedAt: Date.now() + m.timeOffsetMs, recap: end.recap }) : m;
+          });
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
       } finally {
@@ -137,14 +209,30 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
       setPanelOpen(true);
       if (existing && existing.messageId === messageId) return;
       const lb = learnabilityRef.current[key(threadId, messageId)];
+      const id = `ls_${Date.now().toString(36)}`;
+      const thread = threadsRef.current.find((t) => t.id === threadId);
+      const topics = (lb?.topics ?? []).map((t) => ({ ...t, id: normalizeTopicId(t.id) }));
+      updateMemory((m) => {
+        const next = ensureTopics(m, topics);
+        return upsertEpisode(next, {
+          id,
+          threadId,
+          threadTitle: thread?.title ?? "",
+          trigger,
+          topicIds: topics.map((t) => t.id),
+          startedAt: Date.now() + next.timeOffsetMs,
+          masteryBefore: snapshot(next, topics.map((t) => t.id)),
+          masteryAfter: snapshot(next, topics.map((t) => t.id)),
+        });
+      });
       sessionsRef.current = {
         ...sessionsRef.current,
         [threadId]: {
-          id: `ls_${Date.now().toString(36)}`,
+          id,
           threadId,
           messageId,
           trigger,
-          topics: lb?.topics ?? [],
+          topics,
           objective: null,
           feed: [],
           busy: false,
@@ -162,7 +250,8 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
   const onPromptSent = useCallback(
     async (threadId: string, messageId: string, prompt: string) => {
       try {
-        const lb = await post<Learnability>("/api/learn/classify", { prompt });
+        const known = learnerStateFor(getMemory(), []).knownTopics.map(({ id, label }) => ({ id, label }));
+        const lb = await post<Learnability>("/api/learn/classify", { prompt, known });
         learnabilityRef.current = { ...learnabilityRef.current, [key(threadId, messageId)]: lb };
         setLearnability(learnabilityRef.current);
         if (lb.learnable && learnOnRef.current) start(threadId, messageId, "live");
@@ -218,6 +307,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
           at: Date.now(),
         });
         mutate(threadId, (x) => ({ ...x, busy: false }));
+        recordEvidence(sessionsRef.current[threadId] ?? s, thread, probe, text, g.verdict, g.misconceptionTag, g.revealAnchors);
         void run(threadId, { type: "answer_graded", probeId, verdict: g.verdict });
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
