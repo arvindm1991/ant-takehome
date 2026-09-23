@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #faf9f5;
+  --surface: #ffffff;
+  --sidebar: #f3f1ea;
+  --border: #e4e0d5;
+  --text: #1f1e1b;
+  --muted: #7a7568;
+  --accent: #c2410c;
+  --accent-soft: #fdf0e8;
+  --learn: #4338ca;
+  --learn-soft: #eef0fd;
+  --note: #8a6d1f;
+  --note-soft: #fbf5e3;
+  --code-bg: #f7f6f2;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-sidebar: var(--sidebar);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-learn: var(--learn);
+  --color-learn-soft: var(--learn-soft);
+  --color-note: var(--note);
+  --color-note-soft: var(--note-soft);
+  --color-code: var(--code-bg);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.prose-md p {
+  margin: 0.4em 0;
+}
+.prose-md ol,
+.prose-md ul {
+  padding-left: 1.25em;
+  margin: 0.4em 0;
+}
+.prose-md ol {
+  list-style: decimal;
+}
+.prose-md ul {
+  list-style: disc;
+}
+.prose-md li {
+  margin: 0.2em 0;
+}
+.prose-md code {
+  font-family: var(--font-geist-mono);
+  font-size: 0.85em;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 0.3em;
+}
+.prose-md strong {
+  font-weight: 600;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: 200px 0;
+  }
+}
+.shimmer {
+  background: linear-gradient(90deg, var(--muted) 0%, #d6d1c4 50%, var(--muted) 100%);
+  background-size: 400px 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes flash {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  20% {
+    box-shadow: 0 0 0 3px var(--learn);
+  }
+}
+.anchor-flash {
+  animation: flash 2s ease-out;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.appear {
+  animation: appear 0.35s ease-out;
+}
