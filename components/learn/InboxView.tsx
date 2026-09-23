@@ -39,7 +39,7 @@ export function InboxView({ onOpen, threadExists }: { onOpen: (r: Refresher) => 
         ) : (
           <ul className="space-y-2">
             {due.map((r) => {
-              const available = !r.source || threadExists(r.source.threadId);
+              const available = !!r.source && threadExists(r.source.threadId);
               return (
                 <li key={r.topicId} className="rounded-xl border border-learn/30 bg-surface px-3.5 py-3">
                   <div className="flex items-center gap-2 text-[14px] font-medium">

@@ -67,6 +67,10 @@ describe("learner state for the LSA context", () => {
 describe("refreshers (SPEC §10.3)", () => {
   const learned = () =>
     scheduleReview(applyEvidence(emptyMemory(), ev({ verdict: "partial", threadItemRefs: ["t1:m1#s7"] })), ["jwt"]);
+  it("keep their source even when the evidence had no anchors", () => {
+    const m = advanceClock(scheduleReview(applyEvidence(emptyMemory(), ev({ verdict: "partial", messageId: "m2" })), ["jwt"]), 3);
+    expect(dueRefreshers(m)[0].source).toMatchObject({ threadId: "t1", messageId: "m2" });
+  });
   it("become due after the interval passes on the simulated clock", () => {
     expect(dueRefreshers(learned())).toHaveLength(0);
     const due = dueRefreshers(advanceClock(learned(), 3));

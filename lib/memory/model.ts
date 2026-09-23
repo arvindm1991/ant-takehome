@@ -152,9 +152,8 @@ export function dueRefreshers(m: LearnerMemory): Refresher[] {
   return Object.entries(m.mastery)
     .filter(([, r]) => r.nextDue != null && r.nextDue <= t && r.estimate < 0.7)
     .map(([id, r]) => {
-      const last = [...m.evidence].reverse().find((e) => e.topicId === id && e.threadItemRefs.length > 0);
-      const ref = last?.threadItemRefs[0];
-      const messageId = ref?.split(":")[1]?.split("#")[0];
+      const last = [...m.evidence].reverse().find((e) => e.topicId === id && (e.messageId || e.threadItemRefs.length > 0));
+      const messageId = last?.messageId ?? last?.threadItemRefs[0]?.split(":")[1]?.split("#")[0];
       const ep = last && m.episodes.find((e) => e.id === last.sessionId);
       return {
         topicId: id,

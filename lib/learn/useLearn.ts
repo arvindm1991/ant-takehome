@@ -54,6 +54,7 @@ function recordEvidence(s: LearnSession, thread: Thread, probe: Probe, answer: s
       topicLabel: topicLabel(s, topicId),
       sessionId: s.id,
       threadId: thread.id,
+      messageId: s.messageId,
       threadItemRefs: [...new Set([...probe.anchors, ...anchors])],
       probe: probe.question,
       mode: probe.mode,

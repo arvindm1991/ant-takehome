@@ -17,6 +17,7 @@ export type Evidence = {
   topicId: TopicId;
   sessionId: string;
   threadId: string;
+  messageId?: string; // main-agent turn the session learned from (optional for older rows)
   threadItemRefs: string[]; // anchors (stable thread item ids)
   probe: string;
   mode: ProbeMode;

@@ -35,13 +35,14 @@ async function hmac(data){
   return b64u(await crypto.subtle.sign("HMAC",await keyP,enc.encode(data)));
 }
 const now=()=>Math.floor(Date.now()/1000);
+const T0=now(); // token timestamps are fixed at load so the lab is deterministic
 let original;
 async function render(){
   const mode=document.querySelector("input[name=m]:checked").value;
   const mins=+document.getElementById("exp").value;
   document.getElementById("expl").textContent=(mins>=0?"in ":"")+Math.abs(mins)+" min"+(mins<0?" ago":"");
-  const payload={sub:"u_1024",email:document.getElementById("email").value,role:document.getElementById("role").value,iat:now()-60,exp:now()+mins*60};
-  if(!original){const h=b64uStr(JSON.stringify({alg:"HS256"}));const p=b64uStr(JSON.stringify({sub:"u_1024",email:"alice@acme.com",role:"user",iat:now()-60,exp:now()+900}));original=h+"."+p+"."+await hmac(h+"."+p);}
+  const payload={sub:"u_1024",email:document.getElementById("email").value,role:document.getElementById("role").value,iat:T0-60,exp:T0+mins*60};
+  if(!original){const h=b64uStr(JSON.stringify({alg:"HS256"}));const p=b64uStr(JSON.stringify({sub:"u_1024",email:"alice@acme.com",role:"user",iat:T0-60,exp:T0+900}));original=h+"."+p+"."+await hmac(h+"."+p);}
   const header={alg:mode==="none"?"none":"HS256"};
   const h=b64uStr(JSON.stringify(header)),p=b64uStr(JSON.stringify(payload));
   let sig;
@@ -61,7 +62,8 @@ async function render(){
   const ok=algOk&&sigOk&&expOk;
   const v=document.getElementById("verdict");
   v.className="verdict "+(ok?"ok":"bad");
-  v.textContent=ok?"Accepted: middleware lets the request through":"Rejected: middleware returns 401 / redirects to /login";
+  const untouched=mode==="edit"&&h+"."+p+"."+sig===original;
+  v.textContent=ok?(untouched?"Accepted: nothing changed yet, so the original signature still fits. Edit a field to tamper.":"Accepted: middleware lets the request through"):"Rejected: middleware returns 401 / redirects to /login";
 }
 document.querySelectorAll("input,select").forEach(e=>e.addEventListener("input",render));
 render();`,
