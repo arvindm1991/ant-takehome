@@ -105,7 +105,7 @@ A **learning sub-agent** that rides alongside Claude's main agent in regular Cla
 ```
 
 - **Top bar:** a persistent Learn-mode toggle (discovery arm A) and a notification badge with the count of due refreshers.
-- **Inline chips** under the prompt or completion (discovery arm B). Copy is framed as a level-up, never as remedial.
+- **Inline chips** under the prompt or completion (discovery arm B). Copy is framed as a level-up, never as remedial. Every chip has a ✕; once dismissed, no Learn mode suggestion comes back for that task.
 - **Learning panel tabs:**
   - **Session:** a header (goal, arc dots, concept breadcrumb), then unnumbered goal cards, then the learning agent's turns (interactives, questions, feedback) and the learner's answers and moves. Proactive check-ins appear inline, in the agent's voice.
   - **Text box (D21):** one box of Learn mode's own (indigo border, serif, cap icon), never Claude's composer. With a free-text question open it is the answer box ("Answering: Predict", *Check my answer*); otherwise it asks about Claude's work (*"Ask about what Claude is building…"*). A draft keeps the mode it was started in. Next moves sit above it as chips. A muted line says: *"Learn mode explains Claude's work; to change the work, use Claude's chat."*

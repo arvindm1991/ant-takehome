@@ -138,6 +138,7 @@
 <section>
   <h2>What I built</h2>
   <p>Learn mode is a switch in Claude. When it's on, a learning agent runs alongside Claude. Claude does the task exactly as it would anyway; the learning agent watches Claude's work and teaches you from it.</p>
+  <p><b>Out of the way, but not silent.</b> Learn mode never pauses Claude or covers your work. When it's off, it offers one small suggestion under a task, which you can wave away with ✕; once dismissed, it doesn't come back for that task. When you turn it on, it's proactive: it starts teaching as soon as there's something worth learning, and checks in when Claude writes a step you made a prediction about.</p>
   <div class="arch">
     <div class="box claude"><b>Claude (main agent)</b>Does the task at full quality. Doesn't know Learn mode exists; nothing about the learner enters its context.</div>
     <div class="arrow"><i>→</i>read-only</div>
@@ -167,6 +168,7 @@
     <li>A one-line teaching approach chosen by code from your level. For example: new to this, so show it first; missed twice, so show it and then ask something easier.</li>
   </ul>
   <h3>What it can do</h3>
+  <p>These are the tools built for the prototype, not the full set the agent could have. The aim was a solid product surface with a low floor and a high ceiling: easy for anyone to start with, room to add richer tools, and general enough to work across subjects.</p>
   <table>
     <tr><th>Tool</th><th>What it's for</th></tr>
     <tr><td>Suggest goals</td><td>4–5 things worth learning from this task, from where to look in the repo to a stretch goal.</td></tr>

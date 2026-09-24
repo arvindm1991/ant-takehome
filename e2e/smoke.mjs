@@ -114,6 +114,17 @@ await journey("J4 quick question: instant answer, no learn chip", async () => {
   if ((await p.getByText(/Learn while Claude builds|understand it before you review/).count()) !== 0) throw new Error("chip shown for a trivial ask");
 });
 
+await journey("Suggestions in Claude's thread can be dismissed and stay dismissed for that task", async () => {
+  const p = await page();
+  await p.getByRole("button", { name: /Primary demo/ }).click();
+  await p.getByText("Learn while Claude builds this").waitFor({ timeout: 8000 });
+  await p.getByRole("button", { name: "Dismiss" }).first().click();
+  await p.waitForTimeout(500);
+  if ((await p.getByText("Learn while Claude builds this").count()) !== 0) throw new Error("live suggestion still shown");
+  await p.waitForTimeout(40000); // let Claude finish: the post-task suggestion should not reappear for this task
+  if ((await p.getByText("understand it before you review it").count()) !== 0) throw new Error("post-task suggestion shown after dismissal");
+});
+
 await journey("Toggle first → learn mode starts on its own; one text box answers, then asks; task requests redirect", async () => {
   const p = await page();
   await p.getByRole("switch").click();

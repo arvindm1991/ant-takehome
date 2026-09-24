@@ -92,6 +92,11 @@ export function App() {
     if (canStart && followsTask) learn.start(active.id, canStart.messageId, canStart.trigger);
   };
 
+  // Learn suggestions in Claude's thread can be waved away; once dismissed they stay gone for that task.
+  const [dismissedChips, setDismissedChips] = useState<Set<string>>(() => new Set());
+  const chipKey = (messageId: string) => `${active.id}:${messageId}`;
+  const dismissChip = (messageId: string) => setDismissedChips((s) => new Set(s).add(chipKey(messageId)));
+
   const slots: ThreadSlots = {
     afterPrompt: (messageId) => {
       const lb = learn.learnability(active.id, messageId);
@@ -115,25 +120,31 @@ export function App() {
           />
         );
       }
-      if (!worthSuggesting(lb) || turn?.status === "done") return null;
-      return <LiveLearnChip
+      if (!worthSuggesting(lb) || turn?.status === "done" || dismissedChips.has(chipKey(messageId))) return null;
+      return (
+        <LiveLearnChip
           topics={lb.topics}
           onClick={() => {
             openSheet();
             learn.start(active.id, messageId, "live");
           }}
-        />;
+          onDismiss={() => dismissChip(messageId)}
+        />
+      );
     },
     afterTurn: (messageId) => {
       const lb = learn.learnability(active.id, messageId);
       const turn = active.turns.find((t) => t.messageId === messageId);
-      if (!worthSuggesting(lb) || turn?.status !== "done" || session?.messageId === messageId || learn.contextual(active.id, messageId)) return null;
-      return <PostTaskLearnChip
+      if (!worthSuggesting(lb) || turn?.status !== "done" || session?.messageId === messageId || learn.contextual(active.id, messageId) || dismissedChips.has(chipKey(messageId))) return null;
+      return (
+        <PostTaskLearnChip
           onClick={() => {
             openSheet();
             learn.start(active.id, messageId, "post_task");
           }}
-        />;
+          onDismiss={() => dismissChip(messageId)}
+        />
+      );
     },
   };
 
