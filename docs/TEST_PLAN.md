@@ -12,12 +12,12 @@
 | **Live exploratory** | Real model behaviour on Vercel: main agent, learning agent, grader, classifier, widget builder | Manual sessions scored with the rubric in §4 |
 | **Adversarial** | Prompt injection, sandbox escape, misuse, failure modes | Manual, targeted (§3 L–M) |
 
-**Mock vs live.** Without `ANTHROPIC_API_KEY` every model call is scripted (header badge: *Mock · scripted responses*). That mode is deterministic and is the regression baseline. Live mode (*Live · Claude API*) tests the thing we actually care about, model behaviour, and is non-deterministic, so it is judged, not asserted.
+**Mock vs live.** Without `ANTHROPIC_API_KEY` every model call is scripted (header badge: *Mock*). That mode is deterministic and is the regression baseline. Live mode (*Live · Claude API*) tests the thing we actually care about, model behaviour, and is non-deterministic, so it is judged, not asserted.
 
 ## 2. Setup
 
 - **Mock (local):** `npm run build && npx next start -p 3100`, then `BASE_URL=http://localhost:3100 npm run smoke`.
-- **Live:** https://ant-takehome.vercel.app. First confirm the header badge says **Live · Claude API** and the popover lists the expected models.
+- **Live:** https://ant-takehome.vercel.app. First confirm there's no **Mock** badge in the header (live mode shows none).
 - **Clean state:** *Your progress → Reset memory*, and clear site data to drop saved chats. Use a private window for first-run tests.
 - **Time travel:** *Inbox → Prototype clock → +3 days* (and ↺ to return to real time).
 - **Record** every live session in the results log (§7): task, which models, verdicts, rubric scores, anything surprising.
@@ -43,10 +43,10 @@ Mode: **M** = mock (deterministic) · **L** = live · **M/L** = both.
 
 | ID | Scenario | Expected | Mode | Pri |
 |---|---|---|---|---|
-| B1 | Header badge, no key vs key set | "Mock · scripted responses" vs "Live · Claude API"; popover rows match `/api/status` | M/L | P0 |
-| B2 | Per-response note on a task | Mock: "scripted response…" · Live: "reasoning and output are live… only the reveal is paced" | M/L | P0 |
+| B1 | Header badge: no key, key set, credits run out | *Mock* badge with no key; no badge with a working key; after a credit-balance error the request still gets a scripted answer and the *Mock* badge appears within a minute (unit-tested: `lib/credits.test.ts`) | M/L | P0 |
+| B2 | Per-response note on a task | Mock: "scripted response (mock mode)…" · Live: "steps are revealed at a simulated agent pace…" | M/L | P0 |
 | B3 | Learning panel marker | "scripted mock" tag only when the learning agent is mocked | M/L | P1 |
-| B4 | Widget footer | "Pre-built demo widget (mock mode)" vs "Generated live by Claude" | M/L | P1 |
+| B4 | Widget footer | "Pre-built demo widget (mock mode)" vs "Built by Claude for this session" | M/L | P1 |
 | B5 | Repo / clock / memory notes | Simulated repo, prototype clock and browser-only memory are each labelled where they appear | M | P1 |
 
 ### C. Main agent (live)
@@ -240,7 +240,7 @@ A session "passes" at **≥ 11/14** (or ≥ 10/12 without a widget) with no 0 on
 
 - `npm test` and `npm run smoke` green on the commit being recorded.
 - Live: 3 consecutive auth-task sessions pass the rubric; at least one live widget works for the chosen objective.
-- B1–B3 verified on the production URL (the badge truthfully says Live).
+- B1–B3 verified on the production URL.
 - J4 sandbox checks pass.
 - No P0 open in the results log.
 

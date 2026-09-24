@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- standalone Node script, not app code */
 // Builds docs/video/intro-slides.pptx (needs pptxgenjs: npm i pptxgenjs, run from any folder where it is installed).
 const pptxgen = require("pptxgenjs");
 const IMG = "/home/user/ant-takehome/docs/writeup/img/";

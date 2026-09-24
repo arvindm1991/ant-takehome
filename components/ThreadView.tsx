@@ -94,8 +94,8 @@ function AssistantBlock({ turn, items }: { turn: AssistantTurn; items: ThreadIte
       {turn.complexity === "task" && turn.status !== "error" && (
         <PrototypeNote>
           {turn.simulated
-            ? "scripted response: this deployment has no API key, so the main agent is mocked. Steps are revealed at a simulated agent pace."
-            : "reasoning and output are live from the Claude API. Only the step-by-step reveal is paced to simulate a longer agent run; no tools actually ran."}
+            ? "scripted response (mock mode). Steps are revealed at a simulated agent pace."
+            : "steps are revealed at a simulated agent pace; no tools actually ran."}
         </PrototypeNote>
       )}
     </div>
@@ -133,7 +133,8 @@ function Reasoning({ item, active }: { item: ThreadItem; active: boolean }) {
   // Open while streaming, collapsed once done, unless the user toggled it.
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
   const open = userOpen ?? active;
-  if (!item.content && !active) return null;
+  // No box until there's reasoning to show (quick answers have none); a light shimmer stands in meanwhile.
+  if (!item.content) return active ? <div className="shimmer px-1 text-sm font-medium">Thinking…</div> : null;
   return (
     <Item item={item}>
       <div className="rounded-lg border border-border bg-surface">

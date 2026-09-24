@@ -53,7 +53,7 @@ export function Widget({ state, title, onEngaged, onRetry }: { state: WidgetStat
         className="w-full rounded-lg border border-lsa-border bg-lsa-surface"
       />
       <div className="mt-1 text-[11px] text-muted">
-        {state.generated ? "Generated live by Claude for this session · sandboxed" : "Pre-built demo widget (mock mode) · live mode generates this with Opus"}
+        {state.generated ? "Built by Claude for this session · sandboxed" : "Pre-built demo widget (mock mode)"}
       </div>
     </div>
   );

@@ -1,7 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { buildTriageRequest, TriageSchema } from "@/lib/main/triage";
+import { creditsExhausted, isOutOfCredits, withCreditFallback } from "@/lib/credits";
 import { buildMainRequest, type MainRequestInput } from "@/lib/main/request";
-import { MainResultSchema, type MainEvent } from "@/lib/main/schema";
+import { MainResultSchema, type MainEvent, type MainResult } from "@/lib/main/schema";
 import { mockResponse } from "@/lib/main/mock";
 import { guard } from "@/lib/rateLimit";
 import { clip, publicError, readJson, UserFacingError } from "@/lib/api";
@@ -26,22 +29,11 @@ export async function POST(req: Request) {
       .slice(-20)
       .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: clip(m.content, 4000) })),
   };
-  const useMock = !process.env.ANTHROPIC_API_KEY || process.env.MOCK_MAIN === "1";
-
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (e: MainEvent) => controller.enqueue(line(e));
       try {
-        if (useMock) {
-          const mock = mockResponse(input.prompt);
-          for (const chunk of mock.thinking) {
-            send({ type: "thinking", text: chunk });
-            await sleep(mock.result.complexity === "trivial" ? 150 : 900);
-          }
-          send({ type: "result", result: mock.result, simulated: true });
-        } else {
-          await streamReal(input, send);
-        }
+        await respond(input, send);
       } catch (err) {
         send({ type: "error", message: publicError(err).message });
       } finally {
@@ -53,6 +45,42 @@ export async function POST(req: Request) {
   return new Response(stream, {
     headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" },
   });
+}
+
+// No key, MOCK_MAIN=1, or the account ran out of credits: the scripted fallback.
+const useMock = () => !process.env.ANTHROPIC_API_KEY || process.env.MOCK_MAIN === "1" || creditsExhausted();
+
+const respond = withCreditFallback(async (input: MainRequestInput, send: (e: MainEvent) => void) => {
+  if (useMock()) return streamMock(input, send);
+  // Quick questions get a direct answer from a fast model: no thinking, no pacing.
+  const quick = await quickAnswer(input);
+  if (quick) return send({ type: "result", result: quick, simulated: false });
+  await streamReal(input, send);
+});
+
+async function streamMock(input: MainRequestInput, send: (e: MainEvent) => void) {
+  const mock = mockResponse(input.prompt);
+  if (mock.result.complexity === "task") {
+    for (const chunk of mock.thinking) {
+      send({ type: "thinking", text: chunk });
+      await sleep(900);
+    }
+  }
+  send({ type: "result", result: mock.result, simulated: true });
+}
+
+async function quickAnswer(input: MainRequestInput): Promise<MainResult | null> {
+  try {
+    const res = await new Anthropic().messages.parse({ ...buildTriageRequest(input), output_config: { format: zodOutputFormat(TriageSchema) } });
+    const t = res.parsed_output;
+    if (!t?.quick || !t.answer.trim()) return null;
+    return { complexity: "trivial", summary: "Answered a quick question.", steps: [{ kind: "answer", title: "Answer", lang: "", content: t.answer.trim() }] };
+  } catch (err) {
+    // Out of credits propagates to the fallback; any other triage failure just means "treat it as a task".
+    if (isOutOfCredits(err)) throw err;
+    console.warn("[main] quick-answer check failed; continuing with the main agent", err);
+    return null;
+  }
 }
 
 async function streamReal(input: MainRequestInput, send: (e: MainEvent) => void) {
