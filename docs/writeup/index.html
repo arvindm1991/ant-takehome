@@ -7,13 +7,13 @@
 <link rel="stylesheet" href="fonts/fonts.css">
 <style>
   :root {
-    --paper: #f7f4ec;
+    --paper: #ffffff;
     --ink: #1f1e1b;
     --muted: #6b675e;
-    --rule: #e2ddd0;
+    --rule: #e7e5df;
     --accent: #c46a3b;   /* Claude-ish clay, for Claude's side */
     --learn: #5a5fd6;    /* Learn mode indigo, for the learning side */
-    --card: #fffdf7;
+    --card: #fafaf8;
   }
   * { box-sizing: border-box; }
   html { background: var(--paper); }
@@ -34,12 +34,18 @@
   section { padding: 30px 0 8px; border-top: 1px solid var(--rule); }
   section:first-of-type { border-top: 0; padding-top: 8px; }
   .kicker { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+  section::after { content: ""; display: block; clear: both; }
   figure { margin: 16px 0 18px; }
-  figure img { display: block; width: 100%; height: auto; border-radius: 10px; }
+  figure img { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--rule); }
+  .float-r, .float-l { width: 42%; margin-top: 4px; margin-bottom: 10px; }
+  .float-r { float: right; margin-left: 22px; }
+  .float-l { float: left; margin-right: 22px; }
+  .float-r.wide { width: 46%; }
+  .stack { width: 36%; }
+  .stack img + img { margin-top: 10px; }
+  .pull { overflow: hidden; }
   figcaption { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
-  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .shot img { border: 1px solid var(--rule); }
-  .meme img { max-width: 560px; margin: 0 auto; }
+
   .pull { font-size: 20px; line-height: 1.4; border-left: 3px solid var(--learn); padding: 2px 0 2px 16px; margin: 16px 0; }
   ul { margin: 0 0 12px; padding-left: 20px; }
   li { margin: 4px 0; }
@@ -63,7 +69,8 @@
   @media (max-width: 640px) {
     body { padding: 32px 16px 56px; }
     h1 { font-size: 34px; }
-    .pair, .arch { grid-template-columns: 1fr; }
+    .arch { grid-template-columns: 1fr; }
+    .float-r, .float-l, .float-r.wide { float: none; width: 100%; margin: 12px 0 14px; }
     .arrow i { transform: rotate(90deg); }
   }
   @page { size: Letter; margin: 14mm 14mm 16mm; }
@@ -95,10 +102,7 @@
 <section>
   <div class="kicker">The problem</div>
   <h2>The work still gets done. The skill doesn't get built.</h2>
-  <div class="pair">
-    <figure><img src="img/forklift-gym.png" alt="A forklift lifting a barbell in a gym"></figure>
-    <figure><img src="img/microwave-rust.png" alt="A microwave meal next to rusting pots and dull knives"></figure>
-  </div>
+  <figure class="float-r stack"><img src="img/forklift-gym.png" alt="A forklift lifting a barbell in a gym"><img src="img/microwave-rust.png" alt="A microwave meal next to rusting pots and dull knives"></figure>
   <p>Skill comes from the friction of doing the work. Agents remove that friction by default: the weight gets lifted and the meal gets made, and the muscle, the knives and the pots go unused. Showing more steps doesn't fix it. Claude already shows its reasoning and code, and people skip to the answer.</p>
   <p>The upside is that this isn't learning for its own sake. The task is real, the user just asked for it, and an expert is doing it right now. That is the best moment to learn, like training on a shop floor while a master does the job.</p>
   <p class="pull">We need to put back just enough friction, while the work is being done, without slowing the work down.</p>
@@ -107,7 +111,7 @@
 <section>
   <div class="kicker">Why Option B, and why inside Claude</div>
   <h2>People queue at the counter that finishes the task</h2>
-  <figure class="meme"><img src="img/two-counters.jpg" alt="Two counters: a short line at 'teaches you how to do a task yourself', a huge crowd at 'finishes the task autonomously'"></figure>
+  <figure class="float-r wide"><img src="img/two-counters.jpg" alt="Two counters: a short line at 'teaches you how to do a task yourself', a huge crowd at 'finishes the task autonomously'"></figure>
   <p>When something needs doing, people go where it gets done quickly. That's why so many good learning products get little use; I've built some of them. A separate, high-friction learning app is counter 1: good for the few who choose it, empty for everyone else.</p>
   <p>So I didn't build counter 1. <b>Learn mode puts the teaching at counter 2</b>, inside the Claude session where the queue already is, and it never makes the task wait. That is Option B, turning AI-assisted work into learning, placed where it can actually reach people.</p>
 </section>
@@ -120,6 +124,8 @@
     <div class="arrow"><i>→</i>read-only</div>
     <div class="box learn"><b>Learn mode (learning agent)</b>Reads Claude's plan, files and reasoning as they arrive. Teaches from them, grounded in Claude's actual code.</div>
   </div>
+  <figure class="float-r wide"><img src="img/prototype.png" alt="The prototype: Claude working in the main thread, Learn mode on the right with a JWT visualizer and a prediction question">
+    <figcaption>The prototype: Claude building auth on the left; Learn mode on the right, opening with a token visualizer before asking for a prediction.</figcaption></figure>
   <h3>One journey: “Build a login page with JWT auth for this app”</h3>
   <ol class="steps">
     <li><b>Turn on Learn mode</b> (or tap the chip under a task). Claude starts working; you are never in its way.</li>
@@ -129,8 +135,6 @@
     <li><b>Go where you want.</b> Dig deeper, zoom out or try it hands-on; after a miss, get a hint, an interactive, or the exact spot in Claude's code.</li>
     <li><b>It comes back.</b> A recap shows how your mastery moved. Days later, or when a related task comes up, a one-question refresher brings the topic back.</li>
   </ol>
-  <figure class="shot"><img src="img/prototype.png" alt="The prototype: Claude working in the main thread, Learn mode on the right with a JWT visualizer and a prediction question">
-    <figcaption>The prototype: Claude building auth on the left; Learn mode on the right, opening with a token visualizer before asking for a prediction.</figcaption></figure>
 </section>
 
 <section>
