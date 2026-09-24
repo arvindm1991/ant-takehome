@@ -7,7 +7,6 @@ import { applyEvidence, applyReviewOutcome, bump, contextualRefresher, ensureTop
 import { getMemory, updateMemory } from "@/lib/memory/store";
 import type { Thread } from "@/lib/thread/types";
 import { crossCheckApproach, readsComplete } from "./mcq";
-import { selectStrategy } from "./prompt";
 import type {
   FeedEntry,
   GradeResult,
@@ -193,7 +192,6 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
       const feed = deriveFeed(s, thread);
       const mainAgentStatus = turnDone(thread, s.messageId) ? "done" : "working";
       const learner = learnerStateFor(getMemory(), sessionTopicIds(s));
-      const objTopic = s.objective && learner.topics.find((t) => t.id === normalizeTopicId(s.objective!.topicId));
       const req: LearnRequest = {
         event,
         sessionTrigger: s.trigger,
@@ -205,7 +203,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
         topics: s.topics,
         objective: s.objective,
         feed,
-        strategy: selectStrategy(feed, mainAgentStatus, objTopic ? { estimate: objTopic.estimate, openMisconceptions: objTopic.openMisconceptions } : undefined),
+        strategy: "", // computed server-side from the feed and learner state
       };
       mutate(threadId, (x) => ({ ...x, busy: true }));
       setError(null);

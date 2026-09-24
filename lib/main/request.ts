@@ -32,7 +32,7 @@ ${repoAsContext()}`;
 export function buildMainRequest(input: MainRequestInput) {
   return {
     model: MAIN_MODEL,
-    max_tokens: 32000,
+    max_tokens: 24000,
     thinking: { type: "adaptive" as const, display: "summarized" as const },
     system: SYSTEM,
     messages: [

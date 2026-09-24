@@ -14,7 +14,7 @@ The main agent never knows the learning agent exists, and the task never waits o
 
 - **Prototype:** https://ant-takehome.vercel.app. Try *Build a login page with JWT auth for this app*, then click "Learn while Claude builds this".
 - **Design and decisions:** [`SPEC.md`](SPEC.md) (numbered decision log, journeys, architecture, memory model, metrics)
-- **Test plan:** [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md)
+- **Test plan:** [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md) (includes the security and cost review) · **Eval strategy:** [`docs/EVAL_STRATEGY.md`](docs/EVAL_STRATEGY.md)
 
 ## What's live and what's simulated
 
@@ -60,7 +60,8 @@ lib/main                main-agent prompt, schema, mock (never imports lib/learn
 lib/learn               context assembly, tools, strategy, MCQ cross-check, mocks, widgets, client orchestration
 lib/memory              learner memory: schema, mastery update, review schedule, refreshers, browser store
 lib/thread              thread items with stable ids, pacing, persistence, anchor focus
-lib/rateLimit.ts        per-IP limits, daily cap, input caps
+lib/api.ts              bounded body parsing, deep clamping, user-safe errors
+lib/rateLimit.ts        per-IP hourly limits, daily caps per bucket
 components/             Claude-style shell, thread view, learning panel (Session / Your progress / Inbox)
 ```
 
@@ -68,4 +69,4 @@ components/             Claude-style shell, thread view, learning panel (Session
 
 Vercel: import the repo and set `ANTHROPIC_API_KEY`. Env var changes apply to new deployments.
 
-Rate limits apply automatically when a key is set: per IP per hour, plus a daily total. They're in memory, so each serverless instance counts separately and counters reset on cold start. That's fine for a demo; production would use a shared store and sign-in.
+Rate limits apply automatically when a key is set: per IP per hour, plus daily caps (in total, and separately for the Opus-backed main agent and widget builder). They're in memory, so each serverless instance counts separately and counters reset on cold start. That's fine for a demo; production would use a shared store and sign-in.

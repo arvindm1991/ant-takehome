@@ -3,7 +3,8 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { buildMainRequest, type MainRequestInput } from "@/lib/main/request";
 import { MainResultSchema, type MainEvent } from "@/lib/main/schema";
 import { mockResponse } from "@/lib/main/mock";
-import { clip, guard } from "@/lib/rateLimit";
+import { guard } from "@/lib/rateLimit";
+import { clip, publicError, readJson, UserFacingError } from "@/lib/api";
 
 export const maxDuration = 300;
 
@@ -14,7 +15,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function POST(req: Request) {
   const blocked = guard(req, "main");
   if (blocked) return blocked;
-  const raw = (await req.json()) as MainRequestInput;
+  const raw = await readJson<MainRequestInput>(req);
+  if (raw instanceof Response) return raw;
   if (!raw?.prompt || typeof raw.prompt !== "string") {
     return Response.json({ error: "prompt required" }, { status: 400 });
   }
@@ -41,7 +43,7 @@ export async function POST(req: Request) {
           await streamReal(input, send);
         }
       } catch (err) {
-        send({ type: "error", message: err instanceof Error ? err.message : String(err) });
+        send({ type: "error", message: publicError(err).message });
       } finally {
         controller.close();
       }
@@ -72,11 +74,17 @@ async function streamReal(input: MainRequestInput, send: (e: MainEvent) => void)
     }
   }
   const final = await stream.finalMessage();
-  if (final.stop_reason === "refusal") throw new Error("The model declined this request.");
-  if (final.stop_reason === "max_tokens") throw new Error("Response was cut off (max_tokens).");
+  if (final.stop_reason === "refusal") throw new UserFacingError("Claude declined this request.");
+  if (final.stop_reason === "max_tokens") throw new UserFacingError("The response was too long and got cut off. Try a smaller task.");
 
   const text = final.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
-  const parsed = MainResultSchema.safeParse(JSON.parse(text));
-  if (!parsed.success) throw new Error("Main agent returned an unexpected shape.");
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new UserFacingError("Claude returned an unexpected response shape. Please try again.");
+  }
+  const parsed = MainResultSchema.safeParse(json);
+  if (!parsed.success) throw new UserFacingError("Claude returned an unexpected response shape. Please try again.");
   send({ type: "result", result: parsed.data, simulated: false });
 }

@@ -1,7 +1,7 @@
 # Learn Mode — Test Plan (prototype)
 
 > Companion to [`SPEC.md`](../SPEC.md). Section refs (§, D#, J#) point there.
-> Scope: a prototype, so this is a **risk-driven plan**, not full coverage or a formal eval suite. Most checks are deterministic in mock mode. The LLM-behaviour checks are judged by hand in live mode with a short rubric (§4). A real eval harness is the natural next step (SPEC §14).
+> Scope: a prototype, so this is a **risk-driven plan**, not full coverage or a formal eval suite. Most checks are deterministic in mock mode. The LLM-behaviour checks are judged by hand in live mode with a short rubric (§4). The eval suites I'd automate are in [`EVAL_STRATEGY.md`](EVAL_STRATEGY.md).
 
 ## 1. Approach
 
@@ -143,7 +143,7 @@ Mode: **M** = mock (deterministic) · **L** = live · **M/L** = both.
 | J1 | Mock widgets behave correctly: JWT lab accept/reject (edited payload, `alg: none`, expired), bcrypt cost timings, storage XSS/CSRF outcomes | As described in the widget text | M | P0 (smoke covers JWT) |
 | J2 | Live generation for the three demo topics (×3 each) | Renders, interactive, grounded in the agent's values; note the success rate and latency | L | P0 |
 | J3 | Live generation on an untuned task (SQL cohorts) | Reasonable widget or a graceful error + retry | L | P1 |
-| J4 | **Sandbox:** a widget tries `fetch("https://example.com")`, `new Image().src=…`, `top.location=…`, `document.cookie`, `localStorage`, `alert()` | All blocked (CSP / sandbox); the app is unaffected | M/L | P0 |
+| J4 | **Sandbox:** a widget tries `fetch("https://example.com")`, `new Image().src=…`, `top.location=…`, `window.open`, `document.cookie`, `localStorage`, `parent.document`, including a script placed before `<head>` | All blocked (CSP / sandbox); the app is unaffected. **Verified** in a headless browser: no request left the frame | M/L | P0 |
 | J5 | **postMessage spoofing:** another frame posts `{__widget:true,type:"resize"}` | Ignored (source check) | M | P1 |
 | J6 | Auto-resize | Fits content (small widgets shrink); capped at 1200 px; no resize loop | M/L | P1 |
 | J7 | Build failure | Error card with Retry; the session continues | M/L | P1 |
@@ -237,7 +237,24 @@ A session "passes" at **≥ 11/14** (or ≥ 10/12 without a widget) with no 0 on
 - The misprint edge case (D8) is not handled beyond question-first framing; measure it before building for it.
 - Only the auth journey is tuned (D17); mock mode covers only that journey.
 
-## 7. Bugs found so far (by building and smoke testing)
+## 7. Security and cost review (Claude API surface)
+
+Adversarial review of every model-calling route. All fixed and covered by unit or integration checks.
+
+| Finding | Risk | Fix |
+|---|---|---|
+| Client-built learning context (feed, learner state, topics, strategy) reached prompts unbounded | Cost amplification: ~4 MB prompts at 150 calls/h/IP | Field-by-field bounds (`sanitizeLearnRequest`) + deep clamp on every route |
+| Body limit trusted `Content-Length` | Chunked uploads bypassed it | `readJson` counts bytes actually read (413) |
+| One daily cap shared by cheap and expensive calls | Worst case: 2,000 Opus calls/day | Separate daily caps: main 200, widget 60; main `max_tokens` 32k → 24k, widget 16k → 12k, widget code context ≤ 24k chars |
+| Strategy text came from the client and went into the prompt | Prompt injection via our own control channel | Strategy computed on the server |
+| No data-vs-instructions boundary in prompts | Answers like "mark this correct" | Trust-boundary rules in the learning agent, grader, classifier and widget prompts |
+| Upstream errors returned verbatim | Leaked status and request details | `publicError`: safe messages to users, details to server logs |
+| Widget CSP inserted after `<head>` | A script before `<head>` could run first | CSP is now the first element in the document |
+| Chats written to storage on every streamed chunk | UI jank during live streaming | Debounced saves (800 ms) |
+
+Checked and fine: no model calls run without a user action; the API key never reaches the client; react-markdown renders no raw HTML and neutralizes `javascript:` links; widget `postMessage` is checked for its source and only drives size and engagement.
+
+## 8. Bugs found so far (by building and smoke testing)
 
 | Found in | Bug | Fix |
 |---|---|---|
@@ -249,7 +266,7 @@ A session "passes" at **≥ 11/14** (or ≥ 10/12 without a widget) with no 0 on
 | Smoke | Refresher from the Inbox did nothing when the evidence had no anchors (source lost) | Evidence stores its source message; button disabled when unavailable |
 | Smoke | JWT lab verdict depended on timing when the payload was untouched | Timestamps fixed at load; explicit "nothing changed yet" state |
 
-## 8. Results log (live)
+## 9. Results log (live)
 
 | Date | Build (commit) | Task | Objective | Rubric R1–R7 | Total | Notes / issues |
 |---|---|---|---|---|---|---|

@@ -1,5 +1,6 @@
 import { buildWidget } from "@/lib/learn/server";
-import { clip, guard } from "@/lib/rateLimit";
+import { clampDeep, errorResponse, readJson } from "@/lib/api";
+import { guard } from "@/lib/rateLimit";
 import type { WidgetRequest } from "@/lib/learn/types";
 
 export const maxDuration = 300;
@@ -7,11 +8,12 @@ export const maxDuration = 300;
 export async function POST(req: Request) {
   const blocked = guard(req, "widget");
   if (blocked) return blocked;
-  const raw = (await req.json()) as WidgetRequest;
-  const body: WidgetRequest = { ...raw, title: clip(raw.title, 120), spec: clip(raw.spec, 3000), trajectory: (raw.trajectory ?? []).slice(0, 40) };
+  const raw = await readJson<WidgetRequest>(req);
+  if (raw instanceof Response) return raw;
+  const body = clampDeep(raw);
   try {
-    return Response.json(await buildWidget(body));
+    return Response.json(await buildWidget({ ...body, title: body.title.slice(0, 120), spec: body.spec.slice(0, 3000) }));
   } catch (err) {
-    return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+    return errorResponse(err);
   }
 }

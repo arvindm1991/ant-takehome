@@ -34,8 +34,18 @@ describe("rate limiting", () => {
     expect(clientIp(req({ "x-forwarded-for": "9.9.9.9, 10.0.0.1" }))).toBe("9.9.9.9");
   });
 
-  it("guard: 413 on oversized bodies; no limiting in mock mode; 429 with Retry-After when live", async () => {
-    expect(guard(req({ "content-length": String(10 * 1024 * 1024) }), "main")?.status).toBe(413);
+  it("caps expensive buckets per day independently of the total", () => {
+    process.env.RATE_LIMIT_DAILY_TOTAL = "100";
+    process.env.RATE_LIMIT_WIDGET_PER_DAY = "2";
+    const t = 1_000_000_000_000;
+    expect(hit("a", "widget", t).ok).toBe(true);
+    expect(hit("b", "widget", t).ok).toBe(true);
+    expect(hit("c", "widget", t)).toMatchObject({ ok: false, reason: "daily" });
+    expect(hit("c", "learn", t).ok).toBe(true);
+    delete process.env.RATE_LIMIT_WIDGET_PER_DAY;
+  });
+
+  it("guard: no limiting in mock mode; 429 with Retry-After when live", async () => {
     for (let i = 0; i < 10; i++) expect(guard(req(), "main")).toBeNull(); // no key → mock
     process.env.ANTHROPIC_API_KEY = "test";
     for (let i = 0; i < 3; i++) expect(guard(req({ "x-forwarded-for": "3.3.3.3" }), "main")).toBeNull();

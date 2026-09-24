@@ -21,15 +21,20 @@ export function limits() {
     learn: num(process.env.RATE_LIMIT_LEARN_PER_HOUR, 150),
     widget: num(process.env.RATE_LIMIT_WIDGET_PER_HOUR, 10),
     daily: num(process.env.RATE_LIMIT_DAILY_TOTAL, 2000),
+    // Expensive buckets (Opus, large outputs) get their own daily ceilings.
+    mainDaily: num(process.env.RATE_LIMIT_MAIN_PER_DAY, 200),
+    widgetDaily: num(process.env.RATE_LIMIT_WIDGET_PER_DAY, 60),
   };
 }
 
-type Store = { hits: Map<string, number[]>; daily: { day: number; count: number } };
-const store: Store = { hits: new Map(), daily: { day: 0, count: 0 } };
+type Daily = { day: number; total: number; main: number; widget: number; learn: number };
+type Store = { hits: Map<string, number[]>; daily: Daily };
+const freshDaily = (day: number): Daily => ({ day, total: 0, main: 0, widget: 0, learn: 0 });
+const store: Store = { hits: new Map(), daily: freshDaily(0) };
 
 export function resetRateLimits() {
   store.hits.clear();
-  store.daily = { day: 0, count: 0 };
+  store.daily = freshDaily(0);
 }
 
 export type LimitResult = { ok: true } | { ok: false; retryAfterSec: number; reason: "ip" | "daily" };
@@ -38,8 +43,11 @@ export type LimitResult = { ok: true } | { ok: false; retryAfterSec: number; rea
 export function hit(ip: string, bucket: BucketName, now = Date.now()): LimitResult {
   const l = limits();
   const today = Math.floor(now / DAY);
-  if (store.daily.day !== today) store.daily = { day: today, count: 0 };
-  if (store.daily.count >= l.daily) return { ok: false, retryAfterSec: Math.ceil(((today + 1) * DAY - now) / 1000), reason: "daily" };
+  if (store.daily.day !== today) store.daily = freshDaily(today);
+  const bucketCap = bucket === "main" ? l.mainDaily : bucket === "widget" ? l.widgetDaily : Infinity;
+  if (store.daily.total >= l.daily || store.daily[bucket] >= bucketCap) {
+    return { ok: false, retryAfterSec: Math.ceil(((today + 1) * DAY - now) / 1000), reason: "daily" };
+  }
 
   const key = `${bucket}:${ip}`;
   const recent = (store.hits.get(key) ?? []).filter((t) => now - t < HOUR);
@@ -49,7 +57,8 @@ export function hit(ip: string, bucket: BucketName, now = Date.now()): LimitResu
   }
   recent.push(now);
   store.hits.set(key, recent);
-  store.daily.count++;
+  store.daily.total++;
+  store.daily[bucket]++;
   if (store.hits.size > 10_000) prune(now);
   return { ok: true };
 }
@@ -58,21 +67,19 @@ function prune(now: number) {
   for (const [k, v] of store.hits) if (v.every((t) => now - t >= HOUR)) store.hits.delete(k);
 }
 
+// On Vercel, x-forwarded-for is set by the platform (client-supplied values are not
+// passed through), so its first entry is the caller. Elsewhere, put a trusted proxy in front.
 export function clientIp(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for");
   if (fwd) return fwd.split(",")[0].trim();
   return req.headers.get("x-real-ip") ?? "unknown";
 }
 
-const MAX_BODY_BYTES = 256 * 1024;
-
 /**
- * Guard for a model-calling route: body size, then rate limit (live mode only).
- * Returns an error Response to send, or null to proceed.
+ * Rate-limit guard for a model-calling route (live mode only). Body size is enforced
+ * separately by readJson (lib/api.ts). Returns an error Response to send, or null.
  */
 export function guard(req: Request, bucket: BucketName): Response | null {
-  const len = Number(req.headers.get("content-length") ?? 0);
-  if (len > MAX_BODY_BYTES) return Response.json({ error: "Request too large." }, { status: 413 });
   if (!process.env.ANTHROPIC_API_KEY) return null; // mock mode: nothing to protect
   const r = hit(clientIp(req), bucket);
   if (r.ok) return null;
@@ -82,6 +89,3 @@ export function guard(req: Request, bucket: BucketName): Response | null {
       : `You've hit this demo's rate limit. Try again in ${Math.ceil(r.retryAfterSec / 60)} min.`;
   return Response.json({ error: msg }, { status: 429, headers: { "Retry-After": String(r.retryAfterSec) } });
 }
-
-/** Clamp a client-supplied string before it reaches a model. */
-export const clip = (s: unknown, max: number) => String(s ?? "").slice(0, max);

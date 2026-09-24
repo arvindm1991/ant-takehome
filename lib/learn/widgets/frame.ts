@@ -17,11 +17,11 @@ const BRIDGE = `<script>(function(){
 })();</script>`;
 
 export function frameWidgetHtml(html: string): string {
-  let out = html.trim();
-  if (!/<html[\s>]/i.test(out)) out = `<!doctype html><html><head><meta charset="utf-8"></head><body>${out}</body></html>`;
-  out = /<head[^>]*>/i.test(out) ? out.replace(/<head[^>]*>/i, (m) => `${m}${CSP}${BASE_STYLE}`) : out.replace(/<html[^>]*>/i, (m) => `${m}<head>${CSP}${BASE_STYLE}</head>`);
-  out = /<\/body>/i.test(out) ? out.replace(/<\/body>/i, `${BRIDGE}</body>`) : `${out}${BRIDGE}`;
-  return out;
+  // The CSP goes first in the document, before anything the widget wrote, so no widget
+  // script can run ahead of it (the parser hoists it into an implicit <head>).
+  const body = html.trim().replace(/^<!doctype[^>]*>/i, "");
+  const withBridge = /<\/body>/i.test(body) ? body.replace(/<\/body>(?![\s\S]*<\/body>)/i, `${BRIDGE}</body>`) : `${body}${BRIDGE}`;
+  return `<!doctype html>${CSP}<meta charset="utf-8">${BASE_STYLE}${withBridge}`;
 }
 
 /** Strip markdown fences / prose around a generated HTML document. */

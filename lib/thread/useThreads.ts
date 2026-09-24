@@ -52,12 +52,16 @@ export function useThreads(opts: UseThreadsOptions = {}) {
 
   const active = threads.find((t) => t.id === activeId) ?? threads[0];
 
+  // Debounced: live streaming updates threads many times a second.
   useEffect(() => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(threads.filter((t) => t.items.length > 0).slice(0, 20)));
-    } catch {
-      /* storage unavailable: chats live in memory only */
-    }
+    const t = setTimeout(() => {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(threads.filter((x) => x.items.length > 0).slice(0, 20)));
+      } catch {
+        /* storage unavailable: chats live in memory only */
+      }
+    }, 800);
+    return () => clearTimeout(t);
   }, [threads]);
 
   const update = useCallback((threadId: string, fn: (t: Thread) => Thread) => {

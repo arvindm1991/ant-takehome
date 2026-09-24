@@ -1,13 +1,19 @@
 import { classify } from "@/lib/learn/server";
-import { clip, guard } from "@/lib/rateLimit";
+import { clampDeep, readJson } from "@/lib/api";
+import { guard } from "@/lib/rateLimit";
 
+const NONE = { learnable: false, topics: [], relatedKnown: [] };
+
+// Best-effort: any failure (rate limit, bad input, upstream error) just means no suggestion.
 export async function POST(req: Request) {
-  const blocked = guard(req, "learn");
-  if (blocked) return Response.json({ learnable: false, topics: [], relatedKnown: [] }); // best-effort: just skip suggestions
-  const { prompt, known } = (await req.json()) as { prompt: string; known?: { id: string; label: string }[] };
+  if (guard(req, "learn")) return Response.json(NONE);
+  const raw = await readJson<{ prompt: string; known?: { id: string; label: string }[] }>(req, 64 * 1024);
+  if (raw instanceof Response) return Response.json(NONE);
+  const { prompt, known } = clampDeep(raw, { maxString: 4000, maxArray: 40, maxDepth: 4 });
   try {
-    return Response.json(await classify(clip(prompt, 4000), Array.isArray(known) ? known.slice(0, 40) : []));
-  } catch {
-    return Response.json({ learnable: false, topics: [] });
+    return Response.json(await classify(String(prompt ?? ""), Array.isArray(known) ? known : []));
+  } catch (err) {
+    console.error("[classify]", err);
+    return Response.json(NONE);
   }
 }
