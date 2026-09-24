@@ -41,6 +41,7 @@
   .float-r { float: right; margin-left: 22px; }
   .float-l { float: left; margin-right: 22px; }
   .float-r.wide { width: 46%; }
+  .float-l.wide { width: 40%; }
   .float-r.panel { width: 34%; }
   blockquote { margin: 4px 0 14px; padding: 10px 14px; background: var(--card); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; font-size: 14.5px; }
   blockquote cite { display: block; margin-top: 4px; font-size: 12px; font-style: normal; color: var(--muted); }
@@ -76,7 +77,7 @@
     body { padding: 32px 16px 56px; }
     h1 { font-size: 34px; }
     .arch { grid-template-columns: 1fr; }
-    .float-r, .float-l, .float-r.wide, .float-r.panel, .stack { float: none; width: 100%; margin: 12px 0 14px; }
+    .float-r, .float-l, .float-r.wide, .float-l.wide, .float-r.panel, .stack { float: none; width: 100%; margin: 12px 0 14px; }
     .arrow i { transform: rotate(90deg); }
   }
   @page { size: Letter; margin: 14mm 14mm 16mm; }
@@ -87,7 +88,7 @@
     .lede { font-size: 17px; }
     .pull { font-size: 16.5px; }
     section { padding-top: 18px; break-inside: auto; }
-    figure, .arch, tr, .pull, .steps li, blockquote { break-inside: avoid; }
+    figure, .arch, tr, .pull, .steps li, blockquote, section.keep { break-inside: avoid; }
     section { padding-top: 14px; }
     h3 { margin-top: 14px; }
     h2, h3, .kicker { break-after: avoid; }
@@ -121,9 +122,9 @@
   <p>Option A is customer education: teaching people Claude's features. Option B is general education: helping people get better at their own work, whether that's programming, writing or analysis. B is the bigger opportunity. Finding features matters, but people losing their own skills is the bigger risk, and it grows as agents take on more of the work.</p>
 </section>
 
-<section>
+<section class="keep">
   <h2>Why inside Claude, not a separate app</h2>
-  <figure class="float-r wide"><img src="img/two-counters.jpg" alt="Two counters: a short line at 'teaches you how to do a task yourself', a huge crowd at 'finishes the task autonomously'"></figure>
+  <figure class="float-l wide"><img src="img/two-counters.jpg" alt="Two counters: a short line at 'teaches you how to do a task yourself', a huge crowd at 'finishes the task autonomously'"></figure>
   <p>When something needs doing, people go where it gets done fastest. That's why so many good learning products get little use; I've built some of them. A separate learning app that makes you work for the answer is counter 1: good for the few who choose it, empty for everyone else.</p>
   <p>So I didn't build counter 1. <b>Learn mode puts the teaching at counter 2</b>, inside the Claude session where people already are, and it never makes the task wait.</p>
 </section>
