@@ -41,9 +41,9 @@ Narration is written to be spoken at about 140 words a minute. `[Brackets]` are 
 
 ### Turn it on, give Claude a task · 1:35–2:05
 
-`[Tab A. Toggle Learn mode on. Panel opens: "Learn mode is on."]`
+`[Tab A. Point at the Learn mode switch in the top bar; mention the in-the-moment suggestion under a task. Toggle Learn mode on. Panel opens: "Learn mode is on."]`
 
-> Learn mode is one switch. When it's on, a learning agent runs next to Claude. Here's a real task: add JWT login to this notes app.
+> There are two ways in: a switch that's always here, or a suggestion in the moment, under a task worth learning from. Which works better is something we'd A/B test. When it's on, a learning agent runs next to Claude. Here's a real task: add JWT login to this notes app.
 
 `[Send the "Build a login page with JWT auth" suggestion. Claude's reasoning starts streaming.]`
 
@@ -122,7 +122,7 @@ Narration is written to be spoken at about 140 words a minute. `[Brackets]` are 
 >
 > Success is measured by first-try accuracy on refreshers, days later and in a different task: what stuck, not time spent. Guardrails: tasks take no longer, and people don't type requests for Claude into the wrong box.
 >
-> And it scales because it's not a new app. It's a switch in Claude and Claude Code, with topics drawn from the work itself. On by default for students, a light suggestion for professionals, and cost follows use.
+> And it scales because it's not a new app. It's a switch or a nudge in Claude and Claude Code, and we can A/B test which way in works for whom. Topics come from the work itself. On by default for students, a light suggestion for professionals, and cost follows use.
 
 
 ## 7. Close · 7:35–7:50
@@ -134,7 +134,7 @@ Narration is written to be spoken at about 140 words a minute. `[Brackets]` are 
 
 ---
 
-**Total narration:** about 860 words, roughly 6 minutes spoken, which leaves about 1.5 minutes for demo actions and cut waits. If you run long, cut the "its own text box" beat (4:00–4:20) first, then trim segment 4 to the diagram only.
+**Total narration:** about 900 words, roughly 6 minutes spoken, which leaves about 1.5 minutes for demo actions and cut waits. If you run long, cut the "its own text box" beat (4:00–4:20) first, then trim segment 4 to the diagram only.
 
 ## Checklist against the brief
 

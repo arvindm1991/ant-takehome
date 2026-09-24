@@ -145,6 +145,7 @@
 <section>
   <h2>What I built</h2>
   <p>Learn mode is a switch in Claude. When it's on, a learning agent runs alongside Claude. Claude does the task exactly as it would anyway; the learning agent watches Claude's work and teaches you from it.</p>
+  <p><b>Two ways to find it.</b> Learn mode can be a switch that's always there in the top bar, or a suggestion in the moment, under a task worth learning from. The prototype has both. Which works better, and for whom, is something to A/B test and keep improving.</p>
   <p><b>Out of the way, but not silent.</b> Learn mode never pauses Claude or covers your work. When it's off, it offers one small suggestion under a task, which you can wave away with ✕; once dismissed, it doesn't come back for that task. When you turn it on, it's proactive: it starts teaching as soon as there's something worth learning, and checks in when Claude writes a step you made a prediction about.</p>
   <div class="arch">
     <div class="box claude"><b>Claude (main agent)</b>Does the task at full quality. Doesn't know Learn mode exists; nothing about the learner enters its context.</div>
@@ -258,7 +259,7 @@
     <li><b>Works beyond code:</b> topics come from the work itself, not a hand-written course. The same loop fits writing and analysis.</li>
     <li><b>Different defaults for different people:</b> on by default for students (set by schools); off for professionals, with occasional suggestions; stretch goals and review for experienced users.</li>
     <li><b>Cost follows use:</b> it only runs when on; Sonnet and Haiku do the watching and deciding; Opus builds interactives only when someone asks to see or try something.</li>
-    <li><b>Rollout:</b> behind a flag, then compare the switch against in-chat suggestions, and keep it if the main measure improves without hurting the guardrails.</li>
+    <li><b>Rollout:</b> behind a flag, then A/B test how people find it (the always-there switch against in-the-moment suggestions, and their wording and timing), and keep what improves the main measure without hurting the guardrails.</li>
   </ul>
   <p class="note">Simulated in the prototype: the repository, the pacing of Claude's steps, and a “+3 days” clock for spaced review. A scripted fallback runs if API credits run out.</p>
 </section>
