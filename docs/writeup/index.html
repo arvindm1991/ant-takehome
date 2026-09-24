@@ -80,7 +80,7 @@
     .float-r, .float-l, .float-r.wide, .float-l.wide, .float-r.panel, .stack { float: none; width: 100%; margin: 12px 0 14px; }
     .arrow i { transform: rotate(90deg); }
   }
-  @page { size: Letter; margin: 14mm 14mm 16mm; }
+  @page { size: Letter; margin: 12mm 14mm 13mm; }
   @media print {
     body { max-width: none; padding: 0; font-size: 13.5px; line-height: 1.5; }
     table { font-size: 13.5px; }
@@ -94,6 +94,13 @@
     .pull { font-size: 17.5px; }
     section { padding-top: 18px; break-inside: auto; }
     figure, .arch, tr, .pull, .steps li, blockquote, section.keep { break-inside: avoid; }
+    thead { display: table-header-group; break-after: avoid; }
+    table.whole, .keep-block { break-inside: avoid; }
+    li { margin: 2px 0; }
+    .steps li { margin: 6px 0; }
+    p { margin-bottom: 9px; }
+    th, td { padding: 5px 8px; }
+    table { line-height: 1.4; }
     section { padding-top: 14px; }
     h3 { margin-top: 14px; }
     h2, h3, .kicker { break-after: avoid; }
@@ -144,14 +151,14 @@
     <div class="arrow"><i>→</i>read-only</div>
     <div class="box learn"><b>Learn mode (learning agent)</b>Reads Claude's plan, files and code as they appear, and teaches from them.</div>
   </div>
-  <h3>One journey: “Build a login page with JWT auth for this app”</h3>
+  <h3>Example: adding login to a notes app</h3>
   <ol class="steps">
-    <li><b>Turn on Learn mode</b> (or tap the suggestion under a task). Claude starts working; you're never in its way.</li>
-    <li><b>Pick what to learn.</b> Goals come from the task itself: where login plugs into this repo, what a server must check before it trusts a login token, why passwords are hashed with bcrypt.</li>
-    <li><b>See it first.</b> An interactive built from Claude's code, like a visualizer that decodes the token Claude's login will issue.</li>
-    <li><b>Predict before Claude writes it.</b> “What must <code>verifyToken()</code> check?” When the file appears, Learn mode checks your answer against the real code and links to the line.</li>
-    <li><b>Go where you want.</b> Go deeper, step sideways or try it hands-on. After a miss: a hint, an interactive, or the exact spot in Claude's code.</li>
-    <li><b>It comes back.</b> A recap shows what moved. Days later, or when a related task comes up, a one-question refresher brings the topic back.</li>
+    <li>With Learn mode on, you ask Claude to build a login page with JWT auth for your notes app. Claude starts reading the repo.</li>
+    <li>Learn mode lists a few things worth learning from this task, such as how the server checks a login token, or why passwords are stored with bcrypt. You pick one.</li>
+    <li>It shows you the kind of token Claude's code will create, split into its three parts. You tap each part to see what's inside.</li>
+    <li>It asks what <code>verifyToken()</code> needs to check. Claude hasn't written that function yet. When it does, Learn mode compares your answer with Claude's code and links to the lines.</li>
+    <li>If you missed something, you can ask for a hint, see a demo, or jump to the relevant code. If you got it right, you can go a level deeper or move to a related topic.</li>
+    <li>After a few questions it sums up what you covered. A few days later, or when you work on something related, it asks you one question about it again.</li>
   </ol>
   <figure class="shot"><img src="img/prototype.png" alt="The prototype: Claude has read the repo, made a plan and is writing lib/auth.ts; the Learn mode panel shows a JWT visualizer and asks the learner to predict what verifyToken() must check">
     <figcaption>Left: Claude is writing <code>lib/auth.ts</code> and isn't waiting on anything. Right: Learn mode has read Claude's reasoning and plan, built a visualizer of the token that file will issue, and asks you to predict what <code>verifyToken()</code> must check before Claude writes it.</figcaption></figure>
@@ -167,15 +174,17 @@
     <li>Your goal and the conversation so far.</li>
     <li>A one-line teaching approach chosen by code from your level. For example: new to this, so show it first; missed twice, so show it and then ask something easier.</li>
   </ul>
+  <div class="keep-block">
   <h3>What it can do</h3>
   <p>These are the tools built for the prototype, not the full set the agent could have. The aim was a solid product surface with a low floor and a high ceiling: easy for anyone to start with, room to add richer tools, and general enough to work across subjects.</p>
   <table>
-    <tr><th>Tool</th><th>What it's for</th></tr>
+    <thead><tr><th>Tool</th><th>What it's for</th></tr></thead>
     <tr><td>Suggest goals</td><td>4–5 things worth learning from this task, from where to look in the repo to a stretch goal.</td></tr>
     <tr><td>Ask a question</td><td>Predict the next step, explain it back, “what if…”, or pick the files you'd open. It writes the answer key from Claude's code.</td></tr>
     <tr><td>Build an interactive</td><td>Its preferred way to teach. A separate Opus call builds it from Claude's code and runs it in a sandbox with no network access.</td></tr>
     <tr><td>Hint · Explain · Wrap up</td><td>A nudge that never gives the answer; a short explanation tied to Claude's code; a recap when the goal is done.</td></tr>
   </table>
+  </div>
   <p>Everything it produces has to point at the step in Claude's work it's about; references to steps that don't exist are dropped. Two helpers sit beside it: a grader (Sonnet) that scores written answers against the answer key and names the misconception, and a quick check (Haiku) that decides whether a task is worth learning from at all.</p>
   <h3>When it acts</h3>
   <p>It responds to events: a task starts, you pick a goal, you answer, you pick a next step or type a question, or Claude writes a step you made a prediction about. It keeps going on its own where that helps. After you pick the files you'd open, it moves to the next question while Claude is still reading, then checks your picks against the files Claude actually opened. Once you've answered three questions on a goal, it wraps up with a recap.</p>
@@ -220,7 +229,7 @@
 <section>
   <h2>Learning principles</h2>
   <table>
-    <tr><th>Principle</th><th>Where it shows up</th></tr>
+    <thead><tr><th>Principle</th><th>Where it shows up</th></tr></thead>
     <tr><td>Learn on the job</td><td>An expert does the real task while the learning agent explains, asks and checks.</td></tr>
     <tr><td>Learn when it matters</td><td>Topics come from the task you just asked for, so there's no need to convince you they matter.</td></tr>
     <tr><td>Guess, then check</td><td>You predict before the code exists, then compare with what Claude wrote.</td></tr>
@@ -251,7 +260,7 @@
     <li><b>Cost follows use:</b> it only runs when on; Sonnet and Haiku do the watching and deciding; Opus builds interactives only when someone asks to see or try something.</li>
     <li><b>Rollout:</b> behind a flag, then compare the switch against in-chat suggestions, and keep it if the main measure improves without hurting the guardrails.</li>
   </ul>
-  <p class="note">Simulated in the prototype: the repository Claude works on, the pacing of Claude's steps, and a “+3 days” clock for trying spaced review. If API credits run out, the app falls back to a scripted version of the demo.</p>
+  <p class="note">Simulated in the prototype: the repository, the pacing of Claude's steps, and a “+3 days” clock for spaced review. A scripted fallback runs if API credits run out.</p>
 </section>
 
 </body>
