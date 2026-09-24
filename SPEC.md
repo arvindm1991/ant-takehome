@@ -375,6 +375,8 @@ Specified here. A small harness (`evals/`) is a stretch goal. Each is an LLM-jud
 - **Memory:** the schema is designed to move from `localStorage` to Claude's memory system per user. Evidence rows are small and append-only.
 - **Segments:** students get learn mode on by default. Professionals get it off, with chips and a nudge budget. Enterprise/education admins can set defaults.
 - **Rollout:** feature flag, then A/B on discovery arms, then graduation based on the north star plus guardrails.
+- **Experiments we'd run** (each judged on the north star, §15, with its guardrails): how people find it (top-bar switch vs in-the-moment chip vs a mode in the model picker; chip wording; live vs post-task); default on/off per segment and the daily nudge budget; how often it speaks up (check-ins on predicted steps only vs every new file; refreshers in the Inbox only vs also inside related tasks); show-first vs ask-first (interactive before the question, weighed against widget cost); session length (arc of 3 vs shorter/longer); active loop vs the parked Map tab (§19).
+- **Next iterations:** read the MA's own reasoning upstream in a real integration; the same LSA in Claude Code; writing and analysis tasks; learner memory in Claude's memory; the MA-mistake case measured with seeded mistakes before any flow is built (D8); run the eval suites and emit the §13 events before any wider test; new tools plug into the same loop.
 
 ## 17. Tech & structure
 

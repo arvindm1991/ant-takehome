@@ -259,7 +259,33 @@
     <li><b>Works beyond code:</b> topics come from the work itself, not a hand-written course. The same loop fits writing and analysis.</li>
     <li><b>Different defaults for different people:</b> on by default for students (set by schools); off for professionals, with occasional suggestions; stretch goals and review for experienced users.</li>
     <li><b>Cost follows use:</b> it only runs when on; Sonnet and Haiku do the watching and deciding; Opus builds interactives only when someone asks to see or try something.</li>
-    <li><b>Rollout:</b> behind a flag, then A/B test how people find it (the always-there switch against in-the-moment suggestions, and their wording and timing), and keep what improves the main measure without hurting the guardrails.</li>
+    <li><b>Rollout:</b> behind a flag, with each change below run as an A/B test and kept only if it moves the main measure without hurting the guardrails.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="keep-block">
+  <h2>What we'd test, and what comes next</h2>
+  <p>The prototype is a starting point, not a final answer. These are the questions we'd settle with A/B tests, each judged on the main measure (first-try refresher accuracy days later) with the same guardrails: tasks take no longer, people are no less happy with them, and switch-off and dismissal rates stay low.</p>
+  <table>
+    <thead><tr><th>Question</th><th>What we'd compare</th></tr></thead>
+    <tr><td>How people find it</td><td>An always-there switch, a suggestion in the moment under a task, or Learn mode as a mode in the model picker. Also the suggestion's wording, and whether it shows while Claude works or after.</td></tr>
+    <tr><td>Who has it on by default</td><td>On for students (set by schools), off with suggestions for professionals, and how many suggestions a day before it's too many.</td></tr>
+    <tr><td>How often it speaks up</td><td>Check-ins only when Claude writes a step you predicted, or also on other new files. Refreshers in the Inbox only, or also inside related tasks.</td></tr>
+    <tr><td>Show first or ask first</td><td>Opening with an interactive and then a question, against a question first. Interactives cost more, so they have to earn it.</td></tr>
+    <tr><td>How long a session is</td><td>Wrapping up after three questions on a goal, against shorter and longer sessions.</td></tr>
+    <tr><td>Doing, or following along</td><td>The active loop against a live map of Claude's work, which was parked because it feels like teaching without evidence of learning. It may still suit people who want to understand the work but not answer questions.</td></tr>
+  </table>
+  </div>
+  <h3>What comes next</h3>
+  <ul>
+    <li><b>Start even earlier:</b> in a real integration, Learn mode can read the main agent's own reasoning as it happens, instead of the summary the prototype streams.</li>
+    <li><b>Claude Code:</b> the same agent in the terminal, using the minutes while the agent works.</li>
+    <li><b>Beyond code:</b> writing and analysis tasks run through the same loop; each needs its own interactives and a check that its questions are grounded.</li>
+    <li><b>Memory that follows you:</b> move the learner model from the browser into Claude's memory, across devices and products.</li>
+    <li><b>When Claude gets something wrong:</b> measure first with seeded mistakes, and keep asking rather than judging, since Learn mode lacks Claude's full context.</li>
+    <li><b>Evals and analytics:</b> the eval suites and the events to log are written up in the repo; running them is the first step before any wider test.</li>
+    <li><b>More tools:</b> the agent's tool set is deliberately small; new ways to teach plug into the same loop.</li>
   </ul>
   <p class="note">Simulated in the prototype: the repository, the pacing of Claude's steps, and a “+3 days” clock for spaced review. A scripted fallback runs if API credits run out.</p>
 </section>
