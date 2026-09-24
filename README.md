@@ -2,17 +2,18 @@
 
 Education Labs take-home (Option B: *learning through collaboration with Claude*).
 
-Learn Mode puts a **learning sub-agent** inside everyday Claude. While Claude's main agent does the work at full quality, the learning agent watches it (read-only) and turns it into short, grounded learning moments:
+Learn Mode puts a **learning sub-agent** inside everyday Claude. While Claude's main agent does the work at full quality, the learning agent watches it (read-only) and turns it into short, grounded learning moments. It appears as a **Mentor** panel that asks, checks and shows, and never does the task. It opens with goal cards instead of a blank box, and every turn ends with next-move buttons (*Dig deeper · Try it hands-on · Zoom out*, or *Hint · Show me in Claude's code · Easier question* after a miss):
 - an approach question while Claude is still orienting ("which files would you open first?"), checked against the files Claude actually reads
 - predictions about the step Claude is about to write, graded against the code it actually writes
 - interactive widgets that mirror Claude's code
+- a proactive check-in when Claude writes the step you predicted, and a recap of how your mastery moved
 - hints, explanations and what-ifs that adapt to how you're doing
 - a learner memory with mastery, evidence and misconceptions
 - spaced-repetition and interleaving refreshers that bring topics back days later
 
 The main agent never knows the learning agent exists, and the task never waits on you.
 
-- **Prototype:** https://ant-takehome.vercel.app. Try *Build a login page with JWT auth for this app*, then click "Learn while Claude builds this".
+- **Prototype:** https://ant-takehome.vercel.app. Try *Build a login page with JWT auth for this app*, then click "Learn while Claude builds this" and pick a goal card.
 - **Design and decisions:** [`SPEC.md`](SPEC.md) (numbered decision log, journeys, architecture, memory model, metrics)
 - **Test plan:** [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md) (includes the security and cost review) · **Eval strategy:** [`docs/EVAL_STRATEGY.md`](docs/EVAL_STRATEGY.md)
 

@@ -9,7 +9,12 @@ const jsonSchema = (s: z.ZodType) => {
 };
 
 export const LSA_TOOLS = [
-  { name: "suggest_objectives", description: "Offer 2–3 learning objectives drawn from the main agent's task.", input_schema: jsonSchema(SuggestObjectivesInput) },
+  {
+    name: "suggest_objectives",
+    description:
+      "Offer 4–5 learning goals as a journey: one 'orient' (where to look in the repo, with a teaser question), 2–3 'core' concepts from this task, one 'stretch'. outcome = what the learner will be able to do; whyNow = one line tied to what the main agent is doing now; minutes = rough time.",
+    input_schema: jsonSchema(SuggestObjectivesInput),
+  },
   { name: "probe", description: "Ask the learner one question (approach, predict, explain_back or what_if).", input_schema: jsonSchema(ProbeInput) },
   { name: "hint", description: "Nudge after a wrong or partial answer without revealing it.", input_schema: jsonSchema(HintInput) },
   { name: "explain", description: "Short explanation grounded in the main agent's actual code.", input_schema: jsonSchema(ExplainInput) },
@@ -31,7 +36,20 @@ export function toAction(name: string, input: unknown): LearnAction | null {
   switch (name) {
     case "suggest_objectives": {
       const r = SuggestObjectivesInput.safeParse(input);
-      return r.success ? { kind: "objectives", objectives: r.data.objectives } : null;
+      return r.success
+        ? {
+            kind: "objectives",
+            objectives: r.data.objectives.map((o) => ({
+              topicId: o.topicId,
+              topicLabel: o.topicLabel,
+              label: o.outcome,
+              why: o.whyNow,
+              minutes: Math.min(15, Math.max(1, Math.round(o.minutes))),
+              kind: o.kind,
+              teaser: o.teaser,
+            })),
+          }
+        : null;
     }
     case "probe": {
       const r = ProbeInput.safeParse(input);

@@ -7,6 +7,8 @@ import { applyEvidence, applyReviewOutcome, bump, contextualRefresher, ensureTop
 import { getMemory, updateMemory } from "@/lib/memory/store";
 import type { Thread } from "@/lib/thread/types";
 import { crossCheckApproach, readsComplete } from "./mcq";
+import { answeredProbeIds, arcOf, type Nudge } from "./moves";
+import { focusThreadItem } from "@/lib/thread/focus";
 import type {
   FeedEntry,
   GradeResult,
@@ -16,6 +18,7 @@ import type {
   LearnRequest,
   LearnSession,
   Learnability,
+  MoveKind,
   Objective,
   SessionTrigger,
   TrajectoryItem,
@@ -32,7 +35,7 @@ const ORIENTATION = { id: "codebase-orientation", label: "Orienting in a codebas
 function topicLabel(s: LearnSession, topicId: string) {
   const id = normalizeTopicId(topicId);
   if (id === ORIENTATION.id) return ORIENTATION.label;
-  if (s.objective && normalizeTopicId(s.objective.topicId) === id) return s.objective.label;
+  if (s.objective && normalizeTopicId(s.objective.topicId) === id) return s.objective.topicLabel || s.objective.label;
   return s.topics.find((t) => normalizeTopicId(t.id) === id)?.label ?? topicId;
 }
 
@@ -185,7 +188,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
   );
 
   const run = useCallback(
-    async (threadId: string, event: LearnEvent) => {
+    async (threadId: string, event: LearnEvent, onActions?: (a: LearnAction[]) => void) => {
       const s = sessionsRef.current[threadId];
       const thread = threadsRef.current.find((t) => t.id === threadId);
       if (!s || !thread) return;
@@ -203,12 +206,14 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
         topics: s.topics,
         objective: s.objective,
         feed,
+        arc: arcOf(s, feed),
         strategy: "", // computed server-side from the feed and learner state
       };
       mutate(threadId, (x) => ({ ...x, busy: true }));
       setError(null);
       try {
         const { actions } = await post<{ actions: LearnAction[] }>("/api/learn", req);
+        onActions?.(actions);
         const now = Date.now();
         append(threadId, ...actions.map((action, i): FeedEntry => ({ kind: "action", action, at: now + i })));
         updateMemory((m) => actions.reduce((acc, a) => (a.kind === "objectives" || a.kind === "end" ? acc : bump(acc, "shown", a.kind)), m));
@@ -230,15 +235,11 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
     [append, mutate, buildWidget],
   );
 
-  const start = useCallback(
-    (threadId: string, messageId: string, trigger: SessionTrigger) => {
-      const existing = sessionsRef.current[threadId];
-      setPanelOpen(true);
-      if (existing && existing.messageId === messageId && (existing.trigger === "live" || existing.trigger === "post_task")) return;
-      const lb = learnabilityRef.current[key(threadId, messageId)];
+  /** Create a fresh session (and its memory episode) on a main-agent turn. */
+  const openSession = useCallback(
+    (threadId: string, messageId: string, trigger: SessionTrigger, topics: { id: string; label: string }[], objective: Objective | null, feed: FeedEntry[]) => {
       const id = `ls_${Date.now().toString(36)}`;
       const thread = threadsRef.current.find((t) => t.id === threadId);
-      const topics = (lb?.topics ?? []).map((t) => ({ ...t, id: normalizeTopicId(t.id) }));
       updateMemory((m) => {
         const next = ensureTopics(m, topics);
         return upsertEpisode(next, {
@@ -260,18 +261,34 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
           messageId,
           trigger,
           topics,
-          objective: null,
-          feed: [],
+          objective,
+          objectiveAt: objective ? Date.now() : undefined,
+          feed,
           widgets: {},
+          moveTarget: trigger === "refresher" || trigger === "contextual" ? 1 : 3,
+          actedNudges: [],
           busy: false,
           ended: false,
           startedAt: Date.now(),
         },
       };
       setSessions(sessionsRef.current);
+      return id;
+    },
+    [],
+  );
+
+  const start = useCallback(
+    (threadId: string, messageId: string, trigger: SessionTrigger) => {
+      const existing = sessionsRef.current[threadId];
+      setPanelOpen(true);
+      if (existing && existing.messageId === messageId && (existing.trigger === "live" || existing.trigger === "post_task")) return;
+      const lb = learnabilityRef.current[key(threadId, messageId)];
+      const topics = (lb?.topics ?? []).map((t) => ({ ...t, id: normalizeTopicId(t.id) }));
+      openSession(threadId, messageId, trigger, topics, null, []);
       void run(threadId, { type: "session_start" });
     },
-    [run],
+    [run, openSession],
   );
 
   /** Called when a prompt is sent to the main agent. Learn mode on ⇒ auto-start if learnable. */
@@ -295,42 +312,17 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
   /** Spaced-repetition or contextual refresher: always a new session (1 thread : N sessions). */
   const startRefresher = useCallback(
     (threadId: string, messageId: string, topic: { id: string; label: string; daysSince: number }, trigger: "refresher" | "contextual", interleaveWith: string | null) => {
-      const id = `ls_${Date.now().toString(36)}`;
-      const thread = threadsRef.current.find((t) => t.id === threadId);
       const topicId = normalizeTopicId(topic.id);
       setPanelOpen(true);
-      updateMemory((m) =>
-        upsertEpisode(m, {
-          id,
-          threadId,
-          threadTitle: thread?.title ?? "",
-          trigger,
-          topicIds: [topicId],
-          startedAt: Date.now() + m.timeOffsetMs,
-          masteryBefore: snapshot(m, [topicId]),
-          masteryAfter: snapshot(m, [topicId]),
-        }),
-      );
-      sessionsRef.current = {
-        ...sessionsRef.current,
-        [threadId]: {
-          id,
-          threadId,
-          messageId,
-          trigger,
-          topics: [{ id: topicId, label: topic.label }],
-          objective: { topicId, label: topic.label, why: trigger === "refresher" ? "Spaced review" : "Connects to your new task" },
-          feed: [],
-          widgets: {},
-          busy: false,
-          ended: false,
-          startedAt: Date.now(),
-        },
-      };
-      setSessions(sessionsRef.current);
+      openSession(threadId, messageId, trigger, [{ id: topicId, label: topic.label }], {
+        topicId,
+        topicLabel: topic.label,
+        label: trigger === "refresher" ? `Recall ${topic.label} without looking` : `Connect ${topic.label} to this task`,
+        why: trigger === "refresher" ? "Spaced review: retrieval is what makes it stick" : "Connects to your new task",
+      }, []);
       void run(threadId, { type: "refresher_start", topicId, topicLabel: topic.label, daysSince: topic.daysSince, interleaveWith });
     },
-    [run],
+    [run, openSession],
   );
 
   const dismissContextual = useCallback((threadId: string, messageId: string) => {
@@ -352,7 +344,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
 
   const selectObjective = useCallback(
     (threadId: string, objective: Objective) => {
-      mutate(threadId, (s) => ({ ...s, objective }));
+      mutate(threadId, (s) => ({ ...s, objective, objectiveAt: Date.now() }));
       void run(threadId, { type: "objective_selected" });
     },
     [mutate, run],
@@ -366,11 +358,18 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
       if (!s || !thread || !probe) return;
       append(threadId, { kind: "answer", probeId, text, selected, at: Date.now() });
 
+      // The learner steers after feedback (next-move buttons); the mentor only speaks
+      // up on its own to wrap up once the arc is complete.
+      const arcComplete = () => {
+        const cur = sessionsRef.current[threadId];
+        return !!cur && answeredProbeIds(cur.feed).size >= cur.moveTarget;
+      };
+
       if (probe.mode === "approach" && probe.format === "mcq") {
         const traj = trajectoryFor(thread, s.messageId);
         if (readsComplete(traj, turnDone(thread, s.messageId))) {
           const { verdict } = crossCheckApproach(selected, probe.options, traj);
-          void run(threadId, { type: "answer_graded", probeId, verdict });
+          if (arcComplete()) void run(threadId, { type: "answer_graded", probeId, verdict });
         } else {
           // Pre-emption continues while we wait for the main agent's reads.
           void run(threadId, { type: "answer_submitted", probeId });
@@ -396,7 +395,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
         });
         mutate(threadId, (x) => ({ ...x, busy: false }));
         recordEvidence(sessionsRef.current[threadId] ?? s, thread, probe, text, g.verdict, g.misconceptionTag, g.revealAnchors);
-        void run(threadId, { type: "answer_graded", probeId, verdict: g.verdict });
+        if (arcComplete()) void run(threadId, { type: "answer_graded", probeId, verdict: g.verdict });
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
         mutate(threadId, (x) => ({ ...x, busy: false }));
@@ -413,11 +412,62 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
     [append, run],
   );
 
+  /** A next-move button or toolbar action: the learner steers, the mentor responds. */
+  const move = useCallback(
+    (threadId: string, kind: MoveKind, target: string, label: string) => {
+      append(threadId, { kind: "move", move: kind, label, at: Date.now() });
+      void run(threadId, { type: "move", move: kind, target }, (actions) => {
+        // "Show me in Claude's code" jumps the main thread to the first cited step.
+        if (kind !== "show_code") return;
+        const first = actions.flatMap((a) => ("anchors" in a ? a.anchors : []))[0];
+        if (first) setTimeout(() => focusThreadItem(first), 50);
+      });
+    },
+    [append, run],
+  );
+
+  /** Act on (or dismiss) a proactive nudge; either way it leaves the panel. */
+  const actOnNudge = useCallback(
+    (threadId: string, nudge: Nudge, accept: boolean) => {
+      mutate(threadId, (s) => ({ ...s, actedNudges: [...s.actedNudges, nudge.key] }));
+      if (!accept) return;
+      append(threadId, { kind: "move", move: "quiz", label: nudge.cta, at: Date.now() });
+      focusThreadItem(nudge.itemId);
+      void run(threadId, { type: "step_revealed", itemId: nudge.itemId, itemTitle: nudge.itemTitle, probeId: nudge.probeId });
+    },
+    [append, mutate, run],
+  );
+
+  /** Extend a finished arc by two more questions. */
+  const keepGoing = useCallback(
+    (threadId: string, target: string) => {
+      mutate(threadId, (s) => ({ ...s, ended: false, moveTarget: s.moveTarget + 2 }));
+      move(threadId, "keep_going", target, target ? `Keep going: ${target}` : "Keep going");
+    },
+    [mutate, move],
+  );
+
+  /** Start a new goal on the same task, reusing the goal cards already offered. */
+  const pickAnotherGoal = useCallback(
+    (threadId: string) => {
+      const s = sessionsRef.current[threadId];
+      if (!s) return;
+      const cards = s.feed.find((e) => e.kind === "action" && e.action.kind === "objectives");
+      openSession(threadId, s.messageId, s.trigger === "post_task" ? "post_task" : "live", s.topics, null, cards ? [{ ...cards, at: Date.now() }] : []);
+      if (!cards) void run(threadId, { type: "session_start" });
+    },
+    [openSession, run],
+  );
+
   const widgetEngaged = useCallback(() => updateMemory((m) => bump(m, "engaged", "demonstrate")), []);
 
   return {
     session: sessions[activeThreadId] ?? null,
     widgetEngaged,
+    move,
+    actOnNudge,
+    keepGoing,
+    pickAnotherGoal,
     startRefresher,
     contextual: (threadId: string, messageId: string) => contextual[key(threadId, messageId)],
     dismissContextual,

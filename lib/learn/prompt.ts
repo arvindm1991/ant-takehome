@@ -1,7 +1,7 @@
 // LSA system prompt + context assembly (SPEC §9.1, §9.4).
 //   context = system + curriculum + learner state + objective + main-agent trajectory
 //           + recent interaction + relevant evidence + pedagogical strategy + tools
-import type { FeedEntry, LearnRequest, LearnerStateView, TrajectoryItem } from "./types";
+import type { FeedEntry, LearnRequest, LearnerStateView, MoveKind, TrajectoryItem } from "./types";
 
 export const LSA_SYSTEM = `You are the learning companion inside Claude. A separate main agent is doing the user's task; you watch its work (read-only) and help the user genuinely understand it, like a mentor standing beside someone watching an expert glass-blower work. You never influence the main agent and the user is never blocked by you.
 
@@ -13,13 +13,17 @@ How you teach:
 - No verdicts on the main agent's work. You lack its full context (sources, repo history). If something looks off, ask the user a question about it instead of declaring it wrong.
 - Brief. At most one question per turn (a demonstrate + probe pair counts as one). Messages ≤ 90 words. Use the user's level from the strategy.
 
+Your contract with the learner: you ask, check and show. You never do the task for them and never write their code; the main agent does the work. If the learner asks you to change or build something ("add a logout button"), don't: say in one line that the main chat is where Claude does the work, then offer a question about the relevant step.
+
 Tools:
-- suggest_objectives: 2–3 learning objectives drawn from this task. Level-up framing, never remedial.
+- suggest_objectives: 4–5 goals as a journey, in this order: one "orient" goal (where to look in this repo and why; teaser = a curiosity question the learner can't resist, e.g. "Which 3 files would you open before adding login to a notes app?"), then 2–3 "core" concepts from this task, then one "stretch" goal. outcome = what the learner will be able to DO, phrased as an ability ("Explain to a teammate why bcrypt beats SHA-256"), never a topic name. whyNow = one line tied to what the main agent is doing right now. minutes = rough time (2–8). topicLabel = 2–4 word topic name. Topics the learner already has at mastery ≥ 0.7 may be included (the UI collapses them into an "Already solid" row) but never count as one of the core goals. Level-up framing, never remedial.
 - probe: ask one question. For mode "approach" with format "mcq", options must be real paths from the repo tree (5–6 options, a mix of relevant and irrelevant files); leave rubric describing what a good choice looks like. For free_text, the rubric is the answer key the grader will use; ground it in the trajectory.
 - hint: nudge after a wrong/partial answer without giving the answer away.
 - explain: a short grounded explanation using the main agent's actual code.
 - demonstrate: an interactive widget when the concept has a knob worth turning (a parameter, a toggle, an attack to try). Ground the spec in the main agent's actual values. Pair it with a probe in the same turn that asks the learner to use the widget to answer. At most once per session.
-- end_session: one-line recap when the objective is covered.
+- end_session: one-line recap when the session's arc is complete.
+
+Trail: every probe, explain and demonstrate fills concept (2–4 words: what this move is about, e.g. "JWT signatures"), deeper (the next concept one level further into the mechanism, e.g. "HMAC"), and sibling (an adjacent concept worth zooming out to, e.g. "refresh-token rotation"), all grounded in this task. The learner navigates with these.
 
 Topic ids: reuse ids from <learner_state> known topics whenever the concept matches, so memory accumulates; otherwise use short kebab-case ids. Approach questions (where to look, how to orient) use topicId "codebase-orientation". Don't suggest objectives for topics already mastered (estimate ≥ 0.9); prefer the next level up. If the learner has an open misconception on the objective's topic, target it.
 
@@ -51,8 +55,8 @@ function formatEntry(e: FeedEntry): string {
   switch (e.kind) {
     case "action": {
       const a = e.action;
-      if (a.kind === "probe") return `YOU asked [probe ${a.id}, ${a.mode}, topic ${a.topicId}]: ${a.question}${a.options.length ? ` Options: ${a.options.join(", ")}` : ""}`;
-      if (a.kind === "objectives") return `YOU suggested objectives: ${a.objectives.map((o) => o.label).join("; ")}`;
+      if (a.kind === "probe") return `YOU asked [probe ${a.id}, ${a.mode}, topic ${a.topicId}${a.concept ? `, concept ${a.concept}` : ""}]: ${a.question}${a.options.length ? ` Options: ${a.options.join(", ")}` : ""}`;
+      if (a.kind === "objectives") return `YOU suggested goals: ${a.objectives.map((o) => o.label).join("; ")}`;
       if (a.kind === "end") return `YOU ended the session: ${a.recap}`;
       if (a.kind === "demonstrate") return `YOU showed an interactive widget: ${a.title}`;
       return `YOU (${a.kind}): ${a.text}`;
@@ -64,7 +68,9 @@ function formatEntry(e: FeedEntry): string {
     case "reveal":
       return `CROSS-CHECK on probe ${e.probeId}: user picked ${e.picked.join(", ")}; main agent actually read ${e.actual.map((a) => a.path).join(", ")} → ${e.verdict}`;
     case "user":
-      return `USER said: ${e.text}`;
+      return `USER asked: ${e.text}`;
+    case "move":
+      return `USER chose: ${e.label}`;
     case "waiting":
       return `(waiting: ${e.text})`;
   }
@@ -76,11 +82,19 @@ function describeEvent(r: LearnRequest): string {
     case "session_start":
       return "The user just turned on learn mode for this task. Suggest objectives.";
     case "objective_selected":
-      return `The user chose the objective "${r.objective?.label}". Start teaching it.${r.mainAgentStatus === "working" ? " The main agent is still working, so pre-empt: an approach question is a good opener." : ""}`;
+      return r.objective?.kind === "orient"
+        ? `The user chose the orient goal "${r.objective.label}". Open with its teaser as an approach MCQ over real repo paths${r.objective.teaser ? ` ("${r.objective.teaser}")` : ""}.`
+        : `The user chose the goal "${r.objective?.label}". Start teaching it with one question.${r.mainAgentStatus === "working" ? " The main agent is still working, so pre-empt: predict what it's about to write." : ""}`;
     case "answer_submitted":
       return `The user answered probe ${e.probeId}; its cross-check will appear when the main agent gets there. Continue with the next move (don't repeat the same question).`;
     case "answer_graded":
       return `Probe ${e.probeId} was graded "${e.verdict}". Choose the next move per the strategy.`;
+    case "move":
+      return describeMove(e.move, e.target);
+    case "step_revealed":
+      return e.probeId
+        ? `Claude just wrote ${e.itemTitle} (item ${e.itemId}), which answers the learner's earlier prediction (probe ${e.probeId}). Compare their prediction with what Claude actually wrote: an explain anchored to ${e.itemId}, naming what they got right and what's different. Keep it to ~60 words.`
+        : `Claude just wrote ${e.itemTitle} (item ${e.itemId}). Ask ONE short question about it that connects to the objective, anchored to ${e.itemId}.`;
     case "user_message":
       return `The user asked: "${e.text}". Answer briefly and grounded (explain), then optionally invite a check.`;
     case "main_agent_done":
@@ -107,7 +121,7 @@ ${formatEvidence(r.learner)}
 
 <session_type>${r.sessionTrigger}${r.sessionTrigger === "refresher" || r.sessionTrigger === "contextual" ? " (short: one retrieval question, brief feedback, then end_session)" : ""}</session_type>
 
-<objective>${r.objective ? `${r.objective.label} [${r.objective.topicId}]: ${r.objective.why}` : "(not chosen yet)"}</objective>
+<objective>${r.objective ? `${r.objective.label} [${r.objective.topicId}${r.objective.kind ? `, ${r.objective.kind}` : ""}]: ${r.objective.why}` : "(not chosen yet)"}</objective>
 
 <user_request_to_main_agent>${r.userPrompt}</user_request_to_main_agent>
 
@@ -146,11 +160,30 @@ function formatEvidence(l: LearnerStateView): string {
     .join("\n");
 }
 
-/** Code-selected strategy (SPEC §9.3): mastery band of the objective + in-session signals. */
+const MOVES: Record<MoveKind, (t: string) => string> = {
+  dig_deeper: (t) => `The learner chose "Dig deeper"${t ? ` into "${t}"` : ""}: go one level further into the mechanism. One question (predict or what_if), or a ≤ 60-word explain followed by a question.`,
+  zoom_out: (t) => `The learner chose "Zoom out"${t ? ` to "${t}"` : ""}: a sibling concept connected to what Claude built. One question.`,
+  hands_on: () => "The learner chose \"Try it hands-on\": demonstrate a widget for the current concept, paired with a probe that can only be answered by using it.",
+  hint: () => "The learner asked for a hint on the current question: a hint, never the answer.",
+  show_code: () => "The learner asked \"Show me in Claude's code\": an explain that points at the exact items where the answer lives (anchors), quoting the key line. Don't ask a question.",
+  easier: () => "The learner wants an easier question on the same concept: simpler, concrete, answerable from Claude's code.",
+  quiz: () => "The learner chose \"Quiz me\": one question on the current concept.",
+  explain: () => "The learner chose \"Explain\": a ≤ 90-word explanation of the current concept, grounded in Claude's code. No question.",
+  show: () => "The learner chose \"Show me\": if no widget has been shown this session, demonstrate (with a probe that uses it); otherwise an explain anchored to the exact code.",
+  challenge: () => "The learner chose \"Challenge me\": a stretch what_if or transfer question, harder than anything so far.",
+  keep_going: (t) => `The learner finished the arc and wants to keep going: continue${t ? ` with "${t}"` : " one level deeper"}. One question.`,
+};
+
+function describeMove(move: MoveKind, target: string): string {
+  return MOVES[move]?.(target) ?? "Continue with one question.";
+}
+
+/** Code-selected strategy (SPEC §9.3): mastery band of the objective + in-session signals + arc. */
 export function selectStrategy(
   feed: FeedEntry[],
   mainAgentStatus: "working" | "done",
   objective?: { estimate: number | null; openMisconceptions: string[] },
+  arc?: { done: number; target: number },
 ): string {
   const graded = feed.filter((e) => e.kind === "feedback" || e.kind === "reveal") as Extract<FeedEntry, { verdict: unknown }>[];
   const last = graded.at(-1);
@@ -173,6 +206,9 @@ export function selectStrategy(
   } else if (last?.verdict === "correct") {
     lines.push("Last answer was correct: deepen with a what_if/transfer question on the same objective.");
   }
-  if (probes >= 4) lines.push("The session has had enough questions: wrap up with end_session.");
+  if (arc) {
+    lines.push(`Arc: ${arc.done} of ${arc.target} questions answered.`);
+    if (arc.done >= arc.target) lines.push("The arc is complete: wrap up now with end_session (a one-line recap of what was covered).");
+  } else if (probes >= 4) lines.push("The session has had enough questions: wrap up with end_session.");
   return lines.join(" ");
 }

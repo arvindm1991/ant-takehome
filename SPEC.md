@@ -52,6 +52,7 @@ A **learning sub-agent** that rides alongside Claude's main agent in regular Cla
 | D16 | **Widgets are generated freely by Opus** (sliders and interactive HTML). **Quizzes (MCQ, etc.) use templates** | Opus reliably builds small interactive HTML. Templates keep assessments consistent and gradeable. We pre-test on the demo path. |
 | D18 | **Simulated existing repo** ("acme-notes", a small Next.js app with no auth) is given to the MA as context. The MA emits `read` steps for the files it consults. A visible *Prototype note* says the repo is simulated | Makes the demo feel like real agent work in an existing codebase, and gives the approach MCQs a grounded answer key: the files the MA actually chose to read. |
 | D19 | **Per-IP rate limits, daily caps (total and per Opus bucket), bounded inputs, server-side strategy, data-not-instructions prompts** on every model-calling route (live mode); in-memory for the prototype | The public demo URL exposes paid model calls; production would use a shared store (e.g. Redis) and auth |
+| D20 | **The mentor panel is a guided path, not a chat box.** Goal cards replace the blank slate. Every mentor turn ends with 2–3 next-move buttons. A four-button toolbar (*Quiz me · Explain · Show me · Challenge me*) states the contract. Free text is a secondary *"Ask about what Claude just did"* field. The panel has its own visual identity (Mentor) | Testing the live build: a blank input reads as a second Claude. It is unclear what to ask, and task requests can land in the wrong box (`docs/EVAL_STRATEGY.md` suite 12 measures this). Buttons remove the cold start and make the contract visible: the mentor asks, checks and shows, and never does the task. |
 | D17 | **Prototype polish focuses on one journey: the auth page.** Other suggested tasks work but aren't tuned | The brief asks for depth on one interaction pattern. The design is general; the demo is specific. |
 
 ## 5. User journeys
@@ -60,17 +61,18 @@ A **learning sub-agent** that rides alongside Claude's main agent in regular Cla
 1. The user picks the suggested task "Build a login page with JWT auth for my Next.js app" and sends it.
 2. The MA starts working. Its summarized reasoning streams live (real), then steps appear one by one (plan, then files, then notes) at a paced speed. A *Prototype note* explains the pacing.
 3. Under the user's prompt a chip appears: **"🎓 Learn while Claude builds this: JWT auth, password hashing"**. It appears only if the task is learnable and the topics aren't already mastered (§11).
-4. The user clicks it. `learnMode` turns on, the right panel opens (3-panel layout) and the LSA offers 2–3 **suggested learning objectives** (e.g. *How JWTs are structured and signed*, *Why bcrypt and not SHA-256*, *Refresh-token rotation*).
-5. The user picks one. The LSA **pre-empts the MA** (D14). While the MA is still reasoning, it asks an *approach* question, often as multiple choice: *"If you were building this in an existing Next.js repo, which files would you look at first?"* (options: `middleware.ts`, `package.json`, `app/layout.tsx`, `.env`, `README.md`…). When the MA's own steps arrive, the LSA shows which files the MA actually went to and why.
+4. The user clicks it. `learnMode` turns on and the right panel (the **Mentor**) opens. Instead of a blank box it shows **4–5 goal cards** in journey order: *orient* (where login plugs into this repo, opened by a teaser question), then 2–3 *core* concepts (e.g. *Explain what a server must check before it trusts a JWT*), then 1 *stretch*. Each card has an ability-phrased outcome, one "why now" line tied to what Claude is doing, and a time estimate. Topics already mastered collapse into an **"Already solid"** row.
+5. The user picks a card. The LSA **pre-empts the MA** (D14). While the MA is still reasoning, it asks an *approach* question, often as multiple choice: *"If you were building this in an existing Next.js repo, which files would you look at first?"* (options: `middleware.ts`, `package.json`, `app/layout.tsx`, `.env`, `README.md`…). When the MA's own steps arrive, the LSA shows which files the MA actually went to and why.
 6. Next, a **prediction probe anchored to an upcoming step**: *"Claude is about to write `verifyToken()`. Before it does: which parts of a JWT does the server need to check, and why?"*
 7. The user answers. The grader scores the answer, memory updates, and the LSA gives short feedback that **links to the MA step** where the answer is revealed (anchor ↗ scrolls and highlights that step).
-8. The LSA follows with a supporting move chosen by mastery (e.g. `demonstrate` renders an interactive **JWT decoder/tamper widget** built from the token format the MA actually used).
-9. The session ends when the objective is covered, or when the user closes the panel. An episode is written to memory.
+8. The mentor **does not auto-advance**. Every turn ends with 2–3 **next-move buttons** (§9.6): after a correct answer, *Dig deeper · Try it hands-on · Zoom out*; after a miss, *Hint · Show me in Claude's code · Easier question*. "Try it hands-on" can render an interactive **JWT decoder/tamper widget** built from the token format the MA actually used.
+9. **Proactive check-in:** when Claude writes the step a prediction was about (e.g. `lib/auth.ts`), a nudge appears: *"Claude just wrote `lib/auth.ts`. Want to check your prediction?"* It stays until the learner acts on it or taps *Later*.
+10. A header shows the goal, the **arc** ("Move 2 of 3") and a **breadcrumb** of concepts covered. When the arc is complete the mentor writes a **recap**: what was covered and how mastery moved (before → after bars), with *Keep going* and *Pick another goal*. An episode is written to memory.
 
 ### J2 — Post-task: learn before you review
 1. The MA finishes (fast task, or the user ignored the live chip).
 2. A completion chip reads: **"Claude built this auth flow. Want to understand it before you review it? (~3 min)"**
-3. Same loop as J1. Predictions become **explain-back / what-if** probes, since everything is already visible: *"If the server skipped checking `exp`, what attack becomes possible?"*
+3. Same goal cards and loop as J1. Predictions become **explain-back / what-if** probes, since everything is already visible: *"If the server skipped checking `exp`, what attack becomes possible?"*
 
 ### J3 — Refresher (spaced repetition + interleaving)
 1. Some days later (simulated in the prototype with a **"⏩ +3 days"** control, labelled as a prototype note), the top-bar **learning badge** shows an unread count.
@@ -92,22 +94,25 @@ A **learning sub-agent** that rides alongside Claude's main agent in regular Cla
 │ Chats &    │  Main thread                         │  Learning panel       │
 │ tasks      │  ┌ user prompt                       │  [Session] [Inbox]    │
 │            │  │  🎓 Learn while Claude builds…    │                       │
-│            │  ├ step 1  Plan            #s1       │  Objectives ○ ● ○     │
+│            │  ├ step 1  Plan            #s1       │  Goal · Move 2 of 3   │
 │            │  ├ step 2  auth.ts         #s2 ◀─────┼─ anchor highlight     │
-│            │  ├ step 3  middleware.ts   #s3       │  Probe / feedback     │
+│            │  ├ step 3  middleware.ts   #s3       │  Question / feedback  │
 │            │  └ ⓘ Prototype note: paced to        │  Widget (iframe)      │
-│            │     simulate a long agent run        │  Mastery mini-view    │
-│            │  [ input  ▸ suggested tasks ]        │  [ reply input ]      │
+│            │     simulate a long agent run        │  [Dig deeper][Zoom…]  │
+│            │  [ input  ▸ suggested tasks ]        │  Quiz·Explain·Show·Ch │
 └────────────┴──────────────────────────────────────┴───────────────────────┘
 ```
 
 - **Top bar:** a persistent Learn-mode toggle (discovery arm A) and a notification badge with the count of due refreshers.
 - **Inline chips** under the prompt or completion (discovery arm B). Copy is framed as a level-up, never as remedial.
 - **Learning panel tabs:**
-  - **Session:** objectives, the conversation with the LSA, rendered widgets, a small "what you've shown so far" strip.
+  - **Session:** a header (goal, arc dots, concept breadcrumb), then goal cards, then mentor turns (questions, feedback, widgets), the learner's answers and chosen moves, and the next-move buttons. Answers go in a field attached to the open question ("Check my answer"), never a general chat box.
+  - **Toolbar (the contract):** *Quiz me · Explain · Show me · Challenge me*, with the line "I ask, check and show. Claude does the work." A secondary **Ask** button opens a small field labelled *"Ask about what Claude just did"*, with a note that changes to the work belong in the main chat.
+  - **Your progress:** mastery bars, evidence timeline, misconceptions.
   - **Inbox:** refresher cards (spaced repetition) and past sessions for this thread.
   - *(Parked, D7: Map tab.)*
-- **Memory view:** a "Your learning" drawer (from the panel footer) showing topics with mastery bars, an evidence timeline per topic and open misconceptions. This is what we show in the video to make the memory legible.
+- **Mentor identity:** the panel uses its own palette (indigo-slate surface, mentor avatar, serif mentor text) so it never reads as a second Claude.
+- **Memory view:** the *Your progress* tab, showing topics with mastery bars, an evidence timeline per topic and open misconceptions. This is what we show in the video to make the memory legible.
 - **Anchors:** every LSA message carries 0–n anchor chips (`auth.ts · step 2 ↗`). Clicking one scrolls the main thread and highlights that item for about 2 s.
 - **Suggested tasks:** focusing the empty input shows 4–5 suggestions (§12).
 - **Prototype notes:** small, muted ⓘ callouts wherever behavior is simulated (pacing, the time-skip control, the memory store).
@@ -203,8 +208,8 @@ All tool outputs render in the panel. Every tool takes `anchors: string[]` (thre
 
 | Tool | Purpose | Key input |
 |---|---|---|
-| `suggest_objectives` | Offer 2–3 objectives drawn from the trajectory, excluding mastered topics | `objectives[{topicId, label, why}]` |
-| `probe` | **Core loop.** Ask an approach, prediction, explain-back or what-if question. Waits for the user's answer | `question, mode: approach\|predict\|explain_back\|what_if, format: free_text\|mcq, options?, topicId, anchors, rubric` |
+| `suggest_objectives` | Offer 4–5 goal cards in journey order (orient → 2–3 core → 1 stretch). Mastered topics may appear but never count as core; the UI collapses them into "Already solid" | `objectives[{topicId, topicLabel, outcome, whyNow, minutes, kind: orient\|core\|stretch, teaser?}]` |
+| `probe` | **Core loop.** Ask an approach, prediction, explain-back or what-if question. Waits for the user's answer | `question, mode: approach\|predict\|explain_back\|what_if, format: free_text\|mcq, options?, topicId, anchors, rubric, concept, deeper, sibling` |
 | `hint` | Scaffold after a wrong or partial answer, or on request. Never gives the answer | `hint, topicId, anchors` |
 | `explain` | Short, grounded explanation (≤120 words) using the MA's actual code | `explanation, topicId, anchors` |
 | `demonstrate` | Request an interactive widget grounded in the MA's artifact, e.g. a JWT decoder/tamper tool or a bcrypt cost-factor slider. The HTML is **generated by Opus** in a separate call (D16) | `title, spec, topicId, anchors` |
@@ -215,6 +220,8 @@ All tool outputs render in the panel. Every tool takes `anchors: string[]` (thre
 **Formats:** `mcq` probes render from a template (options, single/multi select, reveal-with-anchor) and are graded deterministically where possible. `free_text` probes go to the grader.
 
 The `probe` rubric is written by the LSA and passed to the grader, so the answer key comes from the trajectory.
+
+**Trail fields.** `probe`, `explain` and `demonstrate` also return `concept` (what this turn covers, for the breadcrumb), `deeper` (one level further into the mechanism) and `sibling` (an adjacent concept). The UI uses them to label *Dig deeper* and *Zoom out*, so each button says where it goes.
 
 ### 9.3 Pedagogical strategy (code-selected)
 | Mastery band | Strategy passed to the LSA |
@@ -236,9 +243,23 @@ The `probe` rubric is written by the LSA and passed to the grader, so the answer
 - Learn mode is enabled (live or post-task), leading to `suggest_objectives`.
 - **The user prompt is sent while learn mode is on.** The LSA starts pre-emption immediately, in parallel with the MA (D14).
 - A reasoning chunk arrives. Batched, it is used only to refine pending expectations and never shown verbatim.
-- The user picks an objective or replies.
-- A **new MA item is revealed** while a session is active. The LSA may choose to act (e.g. follow-up on a prediction now revealed). It's debounced and runs at most once per revealed item.
+- The user picks a goal, answers, chooses a next move or toolbar button, or asks (`move` events carry the move and its target).
+- A **new MA item is revealed** while a session is active. Code (not the LSA) decides whether to show a **nudge**: first, an answered prediction whose step is now visible (*Check my prediction*); otherwise the newest file written since the goal was picked (*Quiz me on it*). The LSA only runs if the learner accepts (`step_revealed`), and each nudge shows once.
 - A refresher card is opened.
+
+### 9.6 Session shape (D20)
+- **Learner-driven.** After an answer is graded, the mentor gives feedback and stops. The learner picks what comes next. Exceptions: pre-emption (an approach MCQ during the MA run continues on its own) and the wrap-up.
+- **Next moves** are computed by code from the feed (`lib/learn/moves.ts`), never free-form:
+
+| State | Buttons |
+|---|---|
+| Question open | Hint (once) · Easier question · Show me in Claude's code |
+| Last answer correct | Dig deeper → *deeper* · Try it hands-on (Challenge me if a widget was already used) · Zoom out → *sibling* |
+| Last answer missed | Hint · Show me in Claude's code · Easier question |
+| After an explanation, demo or hint | Quiz me on this · Dig deeper · Zoom out |
+
+- **Arc.** A session aims for 3 answered questions (1 for a refresher). The header shows "Move k of N". When the arc is complete, code tells the LSA to wrap up (`end_session`). *Keep going* extends the arc by 2.
+- **Recap** shows the breadcrumb and before → after mastery for each topic touched, from the episode record.
 
 ## 10. Learner memory
 
@@ -318,7 +339,7 @@ Only #1 is tuned and pre-tested end to end (D17). The others run through the sam
 
 Events go to an in-app event log (a debug drawer, plus `console`). A real build would send them to the analytics pipeline.
 
-`learn_chip_shown / _clicked / _dismissed {placement, arm}` · `learn_toggle_changed {on, source}` · `objective_suggested / _selected` · `probe_shown / _answered / _ignored {mode, topicId}` · `grade {verdict, hinted}` · `tool_rendered / tool_engaged {tool}` · `anchor_clicked` · `widget_interacted` · `refresher_shown / _opened {trigger}` · `badge_opened` · `session_started / _ended {trigger, durationMs, probes, correct}` · `time_skipped`
+`learn_chip_shown / _clicked / _dismissed {placement, arm}` · `learn_toggle_changed {on, source}` · `objective_suggested / _selected {kind, solid}` · `move_chosen {move, source: next_moves\|toolbar}` · `nudge_shown / _acted / _deferred {kind}` · `ask_submitted {misrouted}` · `probe_shown / _answered / _ignored {mode, topicId}` · `grade {verdict, hinted}` · `tool_rendered / tool_engaged {tool}` · `anchor_clicked` · `widget_interacted` · `refresher_shown / _opened {trigger}` · `badge_opened` · `session_started / _ended {trigger, durationMs, probes, correct}` · `time_skipped`
 
 ## 14. Evals (QA for LSA behavior)
 
@@ -335,13 +356,14 @@ Specified here. A small harness (`evals/`) is a stretch goal. Each is an LLM-jud
 | **Pre-emption accuracy** | Share of LSA expectations that match what the MA actually did; approach MCQ options are plausible and the correct ones are grounded in MA items. |
 | **Widget reliability** | Generated widgets render without errors and the interaction works (pre-tested on the demo path). |
 | **Restraint** | Trivial tasks produce no chip; mastered topics are not re-suggested. |
+| **Wrong input box** | Share of text typed into the mentor's Ask field that is really a request to the main agent ("now add a logout button"), and the reverse. A Haiku classifier labels each Ask; the mentor must redirect, not act. Target: misrouted rate falls after D20 and the mentor never does the task. |
 
 ## 15. Success metrics
 
 - **North star: delayed retrieval accuracy on refreshers.** First-attempt accuracy on spaced/contextual probes taken in a *later session and a different task* than where the topic was learned. It measures retention and transfer, not engagement.
 - **Learning curve:** mastery trajectory per topic from the evidence timeline, and misconceptions resolved over time.
 - **Adoption funnel:** chip shown, then clicked, then first probe answered, then session completed. Compared across discovery arms.
-- **Guardrails:** main-task completion time and satisfaction unchanged vs control (the isolation should guarantee this). Toggle-off rate. Nudge dismissal rate.
+- **Guardrails:** main-task completion time and satisfaction unchanged vs control (the isolation should guarantee this). Toggle-off rate. Nudge dismissal rate. **Misrouted-input rate** (task requests typed to the mentor).
 - **Offline:** a pre/post no-AI mini-assessment in a user study.
 
 ## 16. Scaling notes (for the write-up)
@@ -386,7 +408,7 @@ evals/                     # stretch
 | M6 | Polish & ship | Instrumentation log; deploy to Vercel; README; seeded demo path verified end to end |
 | M7 | Stretch | Eval harness for groundedness / no-leak / misprint; discovery `?arm=` |
 
-**Status:** M1–M5 done. M6: deploy, README and rate limiting done; the §13 analytics events are specified but not emitted. M7 out of scope: the eval suites are specified in `docs/EVAL_STRATEGY.md`, and a manual rubric in `docs/TEST_PLAN.md` stands in for them. Beyond the plan: UI modelled on the Claude desktop app, labelling of live vs simulated parts, and a browser smoke test (`npm run smoke`).
+**Status:** M1–M5 done. M6: deploy, README and rate limiting done; the §13 analytics events are specified but not emitted. M7 out of scope: the eval suites are specified in `docs/EVAL_STRATEGY.md`, and a manual rubric in `docs/TEST_PLAN.md` stands in for them. After live testing, the mentor panel was redesigned as a guided path (D20: goal cards, next moves, arc, recap, proactive nudges, contract toolbar). Beyond the plan: UI modelled on the Claude desktop app, labelling of live vs simulated parts, and a browser smoke test (`npm run smoke`).
 
 ## 19. Considered, not built: the Mind-Map tab
 

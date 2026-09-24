@@ -33,7 +33,16 @@ export function sanitizeLearnRequest(r: LearnRequest): LearnRequest {
     trajectory: (r.trajectory ?? []).slice(0, 30).map((i) => ({ id: s(i.id, 60), kind: s(i.kind, 20), title: s(i.title, 120), content: s(i.content, 4000), revealed: !!i.revealed })),
     repoTree: (r.repoTree ?? []).slice(0, 60).map((p) => s(p, 160)),
     topics: (r.topics ?? []).slice(0, 6).map((t) => ({ id: s(t.id, 60), label: s(t.label, 80) })),
-    objective: r.objective ? { topicId: s(r.objective.topicId, 60), label: s(r.objective.label, 120), why: s(r.objective.why, 200) } : null,
+    objective: r.objective
+      ? {
+          topicId: s(r.objective.topicId, 60),
+          topicLabel: s(r.objective.topicLabel, 60),
+          label: s(r.objective.label, 160),
+          why: s(r.objective.why, 200),
+          kind: (["orient", "core", "stretch"] as const).find((k) => k === r.objective?.kind),
+          teaser: s(r.objective.teaser, 200),
+        }
+      : null,
     feed: (r.feed ?? []).slice(-14),
     learner: {
       topics: (learner.topics ?? []).slice(0, 12).map((t) => ({ ...t, id: s(t.id, 60), label: s(t.label, 80), band: s(t.band, 20), openMisconceptions: (t.openMisconceptions ?? []).slice(0, 5).map((m) => s(m, 60)) })),
@@ -43,13 +52,23 @@ export function sanitizeLearnRequest(r: LearnRequest): LearnRequest {
     event:
       r.event?.type === "user_message"
         ? { ...r.event, text: s(r.event.text, 2000) }
-        : r.event?.type === "refresher_start"
+        : r.event?.type === "move"
+          ? { type: "move", move: r.event.move, target: s(r.event.target, 80) }
+          : r.event?.type === "step_revealed"
+            ? { type: "step_revealed", itemId: s(r.event.itemId, 60), itemTitle: s(r.event.itemTitle, 120), probeId: r.event.probeId ? s(r.event.probeId, 60) : null }
+            : r.event?.type === "refresher_start"
           ? { ...r.event, topicId: s(r.event.topicId, 60), topicLabel: s(r.event.topicLabel, 80), interleaveWith: r.event.interleaveWith ? s(r.event.interleaveWith, 120) : null }
           : r.event,
+    arc: { done: Math.max(0, Math.min(20, Number(r.arc?.done) || 0)), target: Math.max(1, Math.min(10, Number(r.arc?.target) || 3)) },
     strategy: "",
   };
   const objTopic = clean.objective && clean.learner.topics.find((t) => t.id === normalizeTopicId(clean.objective!.topicId));
-  clean.strategy = selectStrategy(clean.feed, clean.mainAgentStatus === "done" ? "done" : "working", objTopic ? { estimate: objTopic.estimate, openMisconceptions: objTopic.openMisconceptions } : undefined);
+  clean.strategy = selectStrategy(
+    clean.feed,
+    clean.mainAgentStatus === "done" ? "done" : "working",
+    objTopic ? { estimate: objTopic.estimate, openMisconceptions: objTopic.openMisconceptions } : undefined,
+    clean.arc,
+  );
   return clean;
 }
 

@@ -5,10 +5,22 @@ import { z } from "zod";
 
 export const SuggestObjectivesInput = z.object({
   objectives: z
-    .array(z.object({ topicId: z.string(), label: z.string(), why: z.string() }))
+    .array(
+      z.object({
+        topicId: z.string(),
+        topicLabel: z.string(),
+        outcome: z.string(),
+        whyNow: z.string(),
+        minutes: z.number(),
+        kind: z.enum(["orient", "core", "stretch"]),
+        teaser: z.string(),
+      }),
+    )
     .min(1)
-    .max(3),
+    .max(5),
 });
+
+const TrailFields = { concept: z.string(), deeper: z.string(), sibling: z.string() };
 
 export const ProbeInput = z.object({
   mode: z.enum(["approach", "predict", "explain_back", "what_if"]),
@@ -18,15 +30,17 @@ export const ProbeInput = z.object({
   topicId: z.string(),
   anchors: z.array(z.string()),
   rubric: z.string(),
+  ...TrailFields,
 });
 
 export const HintInput = z.object({ text: z.string(), topicId: z.string(), anchors: z.array(z.string()) });
-export const ExplainInput = HintInput;
+export const ExplainInput = z.object({ text: z.string(), topicId: z.string(), anchors: z.array(z.string()), ...TrailFields });
 export const DemonstrateInput = z.object({
   title: z.string(),
   spec: z.string(),
   topicId: z.string(),
   anchors: z.array(z.string()),
+  ...TrailFields,
 });
 
 export const EndSessionInput = z.object({ recap: z.string() });

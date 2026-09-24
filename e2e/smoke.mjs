@@ -7,7 +7,6 @@
 // Needs Playwright (`npm i -D playwright` or set PLAYWRIGHT_MODULE to an install path).
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const BASE = process.env.BASE_URL ?? "http://localhost:3100";
-const PRED = /prediction|own words/;
 
 const browser = await chromium.launch();
 const errors = [];
@@ -35,47 +34,74 @@ async function journey(name, fn) {
   }
 }
 
-async function learnUntilWhatIf(p, objective, predictAnswer) {
+const moves = async (p) => (await p.locator('[aria-label="Where next"] button').allInnerTexts()).map((t) => t.split("\n")[0]);
+const expectMoves = async (p, want) => {
+  await p.locator('[aria-label="Where next"] button').first().waitFor({ timeout: 8000 });
+  const got = await moves(p);
+  if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(`next moves ${JSON.stringify(got)} ≠ ${JSON.stringify(want)}`);
+};
+const clickMove = (p, label) => p.locator('[aria-label="Where next"] button', { hasText: label }).click();
+const answerWith = async (p, text) => {
+  await p.getByLabel("Your answer").last().fill(text, { timeout: 10000 });
+  await p.getByText("Check my answer").click();
+};
+
+async function startLearning(p, goal) {
   await p.getByRole("button", { name: /Primary demo/ }).click();
   await p.getByText("Learn while Claude builds this").click({ timeout: 8000 });
-  await p.getByText(objective).click({ timeout: 8000 });
+  await p.getByText(goal).waitFor({ timeout: 8000 });
+  const cards = await p.locator("aside ol > li").count();
+  if (cards < 4) throw new Error(`expected 4–5 goal cards, got ${cards}`);
+  await p.getByText(goal).click();
+}
+
+await journey("J1a orient goal: goal cards → approach MCQ → pre-emptive prediction → cross-check → next moves", async () => {
+  const p = await page();
+  await startLearning(p, "Find where login plugs into this repo");
   await p.getByRole("button", { name: "package.json" }).click({ timeout: 8000 });
   await p.getByRole("button", { name: "lib/db.ts" }).click();
   await p.getByText(/^Lock in/).click();
-  await p.getByPlaceholder(PRED).fill(predictAnswer, { timeout: 8000 });
-  await p.getByText("Commit answer").click();
-  await p.getByText("Nailed it").first().waitFor({ timeout: 8000 });
-}
+  await answerWith(p, "In middleware: it runs before every route, so a single check guards all protected paths.");
+  await p.getByText("Nailed it", { exact: true }).first().waitFor({ timeout: 8000 });
+  await p.getByText("Cross-check").waitFor({ timeout: 30000 });
+  await expectMoves(p, ["Dig deeper", "Try it hands-on", "Zoom out"]);
+});
 
-await journey("J1 live: objectives → approach MCQ → predict → cross-check → widget → what-if → hint → recap", async () => {
+await journey("J1b JWT goal: prediction → proactive check-in → hands-on lab → miss → hint → retry → dig deeper → recap", async () => {
   const p = await page();
-  await learnUntilWhatIf(p, "How JWTs are signed and verified", "Verify the signature with the secret and check exp.");
+  await startLearning(p, "Explain what a server must check before it trusts a JWT");
+  await answerWith(p, "Verify the signature with the secret, check the expiry exp, and pin the algorithm.");
+  await p.getByText("Nailed it", { exact: true }).first().waitFor({ timeout: 8000 });
+  await expectMoves(p, ["Dig deeper", "Try it hands-on", "Zoom out"]);
+  await p.getByText("Check my prediction").click({ timeout: 40000 }); // proactive nudge when Claude writes lib/auth.ts
+  await p.getByText(/Which of the three did your prediction cover/).waitFor({ timeout: 8000 });
+  await expectMoves(p, ["Quiz me on this", "Dig deeper", "Zoom out"]);
+  await p.getByRole("button", { name: "Show me" }).click(); // toolbar: hands-on lab + question
   const lab = p.frameLocator("iframe");
-  // The lab re-renders asynchronously (WebCrypto HMAC), so wait for the text.
   await lab.locator("#verdict", { hasText: "Accepted" }).waitFor({ timeout: 10000 });
   await lab.getByText("Attacker edits payload").click();
-  await lab.locator("#verdict", { hasText: "nothing changed yet" }).waitFor({ timeout: 5000 });
   await lab.locator("#role").selectOption("admin");
   await lab.locator("#verdict", { hasText: "Rejected" }).waitFor({ timeout: 5000 });
-  await p.getByText("Cross-check").waitFor({ timeout: 30000 });
-  await p.getByPlaceholder("What would happen?").fill("The page loads slower.");
-  await p.getByText("Commit answer").click();
-  await p.getByText("Hint", { exact: true }).waitFor({ timeout: 10000 });
-  await p.getByPlaceholder("What would happen?").fill("A leaked signed token never expires, so an attacker keeps access forever.");
-  await p.getByText("Commit answer").click();
-  await p.getByText("Session complete").waitFor({ timeout: 10000 });
+  await answerWith(p, "No idea.");
+  await p.getByText("Not quite", { exact: true }).waitFor({ timeout: 8000 });
+  await expectMoves(p, ["Hint", "Show me in Claude's code", "Easier question"]);
+  await clickMove(p, "Hint");
+  await p.getByText("Hint", { exact: true }).first().waitFor({ timeout: 8000 });
+  await answerWith(p, "Editing the payload breaks the HMAC signature made with the secret; alg none is rejected because the algorithm is pinned to HS256.");
+  await p.getByText("Nailed it", { exact: true }).last().waitFor({ timeout: 8000 });
+  await clickMove(p, "Dig deeper");
+  await answerWith(p, "The HMAC signature needs the secret key; without JWT_SECRET they can't produce a valid signature over the edited payload.");
+  await p.getByText("Session recap").waitFor({ timeout: 10000 });
+  await p.getByText("How your mastery moved").waitFor();
   await p.getByRole("button", { name: "Your progress" }).click();
   await p.getByText("JWT auth", { exact: true }).first().waitFor();
 });
 
-await journey("J2 post-task: chip after completion → explain-back", async () => {
+await journey("J2 post-task: completion chip → goal cards → explain-back", async () => {
   const p = await page();
   await p.getByRole("button", { name: /Primary demo/ }).click();
   await p.getByText("Want to understand it before you review it?").click({ timeout: 60000 });
-  await p.getByText("Why bcrypt, not SHA-256").click({ timeout: 8000 });
-  await p.getByRole("button", { name: "package.json" }).click({ timeout: 8000 });
-  await p.getByText(/^Lock in/).click();
-  await p.getByText("Cross-check").waitFor({ timeout: 8000 });
+  await p.getByText("Tell a teammate why bcrypt beats SHA-256").click({ timeout: 8000 });
   await p.getByPlaceholder("Explain it in your own words…").waitFor({ timeout: 8000 });
 });
 
@@ -87,31 +113,33 @@ await journey("J4 quick question: instant answer, no learn chip", async () => {
   if ((await p.getByText(/Learn while Claude builds|understand it before you review/).count()) !== 0) throw new Error("chip shown for a trivial ask");
 });
 
-await journey("Toggle first: learn mode on before sending auto-starts a session", async () => {
+await journey("Toggle first → auto-start with goal cards; contract toolbar + secondary Ask", async () => {
   const p = await page();
   await p.getByRole("switch").click();
-  await p.getByText("Learn mode is on.").waitFor();
+  await p.getByText("I never do the task for you").waitFor();
   await p.getByRole("button", { name: /Primary demo/ }).click();
-  await p.getByText("How JWTs are signed and verified").waitFor({ timeout: 8000 });
+  await p.getByText("Explain what a server must check before it trusts a JWT").click({ timeout: 8000 });
+  for (const t of ["Quiz me", "Explain", "Show me", "Challenge me"]) await p.getByRole("button", { name: t, exact: true }).waitFor();
+  await p.getByRole("button", { name: "Ask" }).click();
+  await p.getByLabel("Ask about what Claude just did").fill("why pin the algorithm?");
+  await p.getByRole("button", { name: "Ask the mentor" }).click();
+  await p.getByText("You asked", { exact: true }).waitFor({ timeout: 8000 });
 });
 
 await journey("J3 refreshers: persist → +3 days → Inbox refresher → interleave → recurrence", async () => {
   const p = await page();
-  await learnUntilWhatIf(p, "How JWTs are signed and verified", "Check the signature with the secret and the exp.");
-  await p.getByPlaceholder("What would happen?").fill("Nothing much.", { timeout: 15000 });
-  await p.getByText("Commit answer").click();
-  await p.getByText("Hint", { exact: true }).waitFor({ timeout: 10000 });
+  await startLearning(p, "Explain what a server must check before it trusts a JWT");
+  await answerWith(p, "Something about the payload?");
+  await p.getByText(/Partly there|Not quite/).first().waitFor({ timeout: 8000 });
   await p.waitForTimeout(30000); // let the main agent finish
   await p.reload();
   await p.getByText("Build a login page with JWT aut").first().waitFor({ timeout: 5000 });
   await p.getByLabel(/learning refreshers due/).click();
   await p.getByRole("button", { name: "+3 days" }).click();
-  const due = await p.getByText("Start refresher · ~1 min").count();
-  if (due < 1) throw new Error("no refreshers due after +3 days");
+  if ((await p.getByText("Start refresher · ~1 min").count()) < 1) throw new Error("no refreshers due after +3 days");
   await p.getByText("Start refresher · ~1 min").first().click();
-  await p.getByPlaceholder(/own words/).fill("package.json for dependencies, lib/db.ts for the data model, and the API routes that need protecting; base64 payload, signature with secret.");
-  await p.getByText("Commit answer").click();
-  await p.getByText("Session complete").waitFor({ timeout: 10000 });
+  await answerWith(p, "The payload is only base64 so anyone can read it; the HMAC signature with the secret stops tampering.");
+  await p.getByText("Session recap").waitFor({ timeout: 10000 });
   await p.getByRole("button", { name: "New", exact: true }).click();
   await p.getByRole("button", { name: /rate limiting/ }).click();
   await p.getByText(/This builds on/).click({ timeout: 8000 });

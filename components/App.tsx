@@ -52,6 +52,9 @@ export function App() {
     if (!turn) return null;
     const lb = learn.learnability(active.id, turn.messageId);
     if (!lb?.learnable || learnedHere(turn.messageId)) return null;
+    // An offered refresher for this task takes precedence; dismissing it frees the panel for goal cards.
+    const nudge = learn.contextual(active.id, turn.messageId);
+    if (nudge && !nudge.dismissed) return null;
     return { messageId: turn.messageId, trigger: turn.status === "done" ? ("post_task" as const) : ("live" as const) };
   })();
 
@@ -144,6 +147,10 @@ export function App() {
           onObjective={(o) => learn.selectObjective(active.id, o)}
           onAnswer={(p, text, sel) => learn.answer(active.id, p, text, sel)}
           onAsk={(text) => learn.ask(active.id, text)}
+          onMove={(mv, target, label) => learn.move(active.id, mv, target, label)}
+          onNudge={(n, accept) => learn.actOnNudge(active.id, n, accept)}
+          onKeepGoing={(target) => learn.keepGoing(active.id, target)}
+          onPickAnotherGoal={() => learn.pickAnotherGoal(active.id)}
           onWidgetEngaged={learn.widgetEngaged}
           onWidgetRetry={(a) => learn.retryWidget(active.id, a)}
           tab={tab}
