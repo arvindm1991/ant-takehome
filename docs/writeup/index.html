@@ -46,9 +46,9 @@
   blockquote cite { display: block; margin-top: 4px; font-size: 12px; font-style: normal; color: var(--muted); }
   h2 { margin-top: 2px; }
   td code, li code, p code { font-size: 0.92em; }
-  .stack { width: 36%; }
-  .stack img + img { margin-top: 10px; }
-  .pull { overflow: hidden; }
+  .quote { width: 40%; margin-top: 4px; }
+  .row { width: 50%; clear: left; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pull { overflow: hidden; clear: left; }
   figcaption { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
 
   .pull { font-size: 20px; line-height: 1.4; border-left: 3px solid var(--learn); padding: 2px 0 2px 16px; margin: 16px 0; }
@@ -75,7 +75,7 @@
     body { padding: 32px 16px 56px; }
     h1 { font-size: 34px; }
     .arch { grid-template-columns: 1fr; }
-    .float-r, .float-l, .float-r.wide { float: none; width: 100%; margin: 12px 0 14px; }
+    .float-r, .float-l, .float-r.wide, .float-r.panel, .quote, .row { float: none; width: 100%; margin: 12px 0 14px; }
     .arrow i { transform: rotate(90deg); }
   }
   @page { size: Letter; margin: 14mm 14mm 16mm; }
@@ -108,10 +108,10 @@
 
 <section>
   <h2>The problem</h2>
-  <blockquote>“When AI agents handle complex tasks autonomously, humans can become passive observers rather than active learners, missing opportunities to develop their own skills and understanding.”<cite>The brief, challenge 2: Cognitive engagement</cite></blockquote>
-  <figure class="float-r stack"><img src="img/forklift-gym.png" alt="A forklift lifting a barbell in a gym"><img src="img/microwave-rust.png" alt="A microwave meal next to rusting pots and dull knives"></figure>
+  <blockquote class="float-l quote">“When AI agents handle complex tasks autonomously, humans can become passive observers rather than active learners, missing opportunities to develop their own skills and understanding.”<cite>The brief, challenge 2: Cognitive engagement</cite></blockquote>
   <p>That's the problem I took on. Agents are a forklift in the gym and a microwave in the kitchen: the work gets done, but the muscle doesn't grow, the knives go dull and the pots rust. Showing more of the work doesn't fix it. Claude already shows its reasoning and code, and people skip to the answer.</p>
   <p>The good news: unlike a course, this isn't learning for its own sake. The task is real, the person just asked for it, and an expert is doing it right now. It's on-the-job training, where you learn the job while a skilled hand does it.</p>
+  <figure class="float-r row"><img src="img/forklift-gym.png" alt="A forklift lifting a barbell in a gym"><img src="img/microwave-rust.png" alt="A microwave meal next to rusting pots and dull knives"></figure>
   <p class="pull">The goal: add back the right amount of effort for the learner while the work gets done, without slowing the work down.</p>
 </section>
 
