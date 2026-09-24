@@ -216,7 +216,7 @@ Mode: **M** = mock (deterministic) · **L** = live · **M/L** = both.
 | P5 | Arc and breadcrumb | Header shows "Move k of N" and the concepts covered; recap appears when the arc is complete | M/L | P0 | unit + smoke |
 | P6 | Recap | Covered concepts, before → after mastery bars, *Keep going* extends the arc, *Pick another goal* returns to the cards | M/L | P1 | smoke |
 | P7 | Proactive nudge | When the predicted file appears: "Check my prediction"; otherwise the newest file since the goal: "Quiz me on it". Stays until acted on or *Later*; never repeats | M/L | P0 | unit + smoke |
-| P8 | Interactives first | JWT goal opens with the token visualizer; "See how it works" after a miss shows an interactive, not prose; widgets use Learn mode's palette | M/L | P0 | smoke |
+| P8 | Interactives first | JWT goal opens with the token visualizer; "See how it works" always shows an interactive (live: `tool_choice` forces `demonstrate`, unit-tested); widgets use Learn mode's palette | M/L | P0 | smoke |
 | P9 | One text box | With a free-text question open it answers ("Answering: …", *Check my answer*); otherwise it asks; a draft started in one mode stays in it when a question arrives; "add a logout button" gets a redirect to Claude's chat | M/L | P0 | smoke |
 | P10 | Identity | Called *Learn mode* everywhere; palette, avatar and serif voice clearly different from the main thread; nobody in a hallway test calls it "the other Claude" | M | P1 | — |
 | P12 | Learn mode on ⇒ learning agent on | With the switch on, each new learnable task starts a session without a chip click; a new task in the same chat moves learning to it; an active refresher is not interrupted | M/L | P0 | smoke |

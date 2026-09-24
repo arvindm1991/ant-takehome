@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { crossCheckApproach, readsComplete } from "./mcq";
 import { selectStrategy } from "./prompt";
 import type { FeedEntry, LearnRequest, TrajectoryItem } from "./types";
-import { sanitizeLearnRequest } from "./server";
+import { sanitizeLearnRequest, toolChoiceFor } from "./server";
 
 const read = (title: string, n: number): TrajectoryItem => ({ id: `t:m1#s${n}`, kind: "read", title, content: `why ${title}`, revealed: true });
 const traj: TrajectoryItem[] = [
@@ -49,6 +49,19 @@ describe("strategy selection", () => {
   });
 });
 
+
+describe("tool choice", () => {
+  it("requires an interactive for \"See how it works\", and leaves every other turn to the agent", () => {
+    expect(toolChoiceFor({ event: { type: "move", move: "explain", target: "" } })).toEqual({ type: "tool", name: "demonstrate" });
+    expect(toolChoiceFor({ event: { type: "move", move: "dig_deeper", target: "HMAC" } })).toEqual({ type: "auto" });
+    expect(toolChoiceFor({ event: { type: "user_message", text: "explain it" } })).toEqual({ type: "auto" });
+  });
+  it("drops unknown moves before they reach the prompt", () => {
+    const base = { event: { type: "move", move: "__proto__", target: "" } } as unknown as LearnRequest;
+    const clean = sanitizeLearnRequest({ ...base, feed: [], trajectory: [], userPrompt: "x", mainAgentStatus: "working", learner: { knownTopics: [] }, objective: null, sessionTrigger: "live", arc: { done: 0, target: 3 } } as unknown as LearnRequest);
+    expect(clean.event).toMatchObject({ type: "move", move: "quiz" });
+  });
+});
 
 describe("learning request sanitizing (cost + injection bounds)", () => {
   const huge = "x".repeat(100_000);

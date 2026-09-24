@@ -169,7 +169,7 @@ const MOVES: Record<MoveKind, (t: string) => string> = {
   show_code: () => "The learner asked \"Show me in Claude's code\": an explain that points at the exact items where the answer lives (anchors), quoting the key line. Don't ask a question.",
   easier: () => "The learner wants an easier question on the same concept: simpler, concrete, answerable from Claude's code.",
   quiz: () => "The learner chose \"Quiz me\": one question on the current concept.",
-  explain: () => "The learner wants to see how it works: demonstrate an interactive that shows the current concept using Claude's actual values, plus a ≤ 40-word explain as its caption. Plain explain (≤ 90 words) only if there is nothing to manipulate. No question.",
+  explain: () => "The learner chose \"See how it works\": demonstrate an interactive that makes the current concept visible using Claude's actual values (this turn requires the demonstrate tool). Put what to try first in the widget's spec. No question.",
   show: () => "The learner chose \"Show me\": if no widget has been shown this session, demonstrate (with a probe that uses it); otherwise an explain anchored to the exact code.",
   challenge: () => "The learner chose \"Challenge me\": a stretch what_if or transfer question, harder than anything so far.",
   keep_going: (t) => `The learner finished the arc and wants to keep going: continue${t ? ` with "${t}"` : " one level deeper"}. One question.`,

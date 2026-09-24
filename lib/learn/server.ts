@@ -7,7 +7,7 @@ import { UserFacingError } from "@/lib/api";
 import { normalizeTopicId } from "@/lib/memory/model";
 import { LSA_TOOLS, toAction } from "./tools";
 import { mockAct, mockGrade, mockLearnability } from "./mock";
-import type { GradeRequest, GradeResult, LearnAction, LearnRequest, Learnability, WidgetRequest } from "./types";
+import type { GradeRequest, GradeResult, LearnAction, LearnRequest, Learnability, MoveKind, WidgetRequest } from "./types";
 import { MOCK_WIDGETS } from "./widgets/mock";
 import { WIDGET_PALETTE } from "./widgets/base";
 import { extractHtml } from "./widgets/frame";
@@ -25,6 +25,8 @@ const s = (v: unknown, n: number) => String(v ?? "").slice(0, n);
  * Field-by-field bounds on a client-built learning request, and a server-computed
  * strategy (never a client-supplied prompt string). Worst case stays ~25k input tokens.
  */
+const MOVE_KINDS = new Set<MoveKind>(["dig_deeper", "zoom_out", "hands_on", "hint", "show_code", "easier", "quiz", "explain", "show", "challenge", "keep_going"]);
+
 export function sanitizeLearnRequest(r: LearnRequest): LearnRequest {
   const learner = r.learner ?? { topics: [], evidence: [], knownTopics: [] };
   const clean: LearnRequest = {
@@ -53,7 +55,7 @@ export function sanitizeLearnRequest(r: LearnRequest): LearnRequest {
       r.event?.type === "user_message"
         ? { ...r.event, text: s(r.event.text, 2000) }
         : r.event?.type === "move"
-          ? { type: "move", move: r.event.move, target: s(r.event.target, 80) }
+          ? { type: "move", move: MOVE_KINDS.has(r.event.move) ? r.event.move : "quiz", target: s(r.event.target, 80) }
           : r.event?.type === "step_revealed"
             ? { type: "step_revealed", itemId: s(r.event.itemId, 60), itemTitle: s(r.event.itemTitle, 120), probeId: r.event.probeId ? s(r.event.probeId, 60) : null }
             : r.event?.type === "refresher_start"
@@ -72,6 +74,11 @@ export function sanitizeLearnRequest(r: LearnRequest): LearnRequest {
   return clean;
 }
 
+/** "See how it works" always gets an interactive: the demonstrate tool is required for that turn (D21). */
+export function toolChoiceFor(req: Pick<LearnRequest, "event">): { type: "auto" } | { type: "tool"; name: string } {
+  return req.event.type === "move" && req.event.move === "explain" ? { type: "tool", name: "demonstrate" } : { type: "auto" };
+}
+
 export async function act(raw: LearnRequest): Promise<LearnAction[]> {
   const req = sanitizeLearnRequest(raw);
   if (isMock()) {
@@ -85,7 +92,7 @@ export async function act(raw: LearnRequest): Promise<LearnAction[]> {
     output_config: { effort: "low" },
     system: LSA_SYSTEM,
     tools: LSA_TOOLS,
-    tool_choice: { type: "auto" },
+    tool_choice: toolChoiceFor(req), // forcing a tool is fine here: this call doesn't use extended thinking
     messages: [{ role: "user", content: buildLearnContext(req) }],
   });
   const actions = res.content.flatMap((b) => {
