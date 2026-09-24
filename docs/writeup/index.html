@@ -144,8 +144,8 @@
 
 <section>
   <h2>What I built</h2>
-  <p>Learn mode is a switch in Claude. When it's on, a learning agent runs alongside Claude. Claude does the task exactly as it would anyway; the learning agent watches Claude's work and teaches you from it.</p>
-  <p><b>Two ways to find it.</b> Learn mode can be a switch that's always there in the top bar, or a suggestion in the moment, under a task worth learning from. The prototype has both. Which works better, and for whom, is something to A/B test and keep improving.</p>
+  <p>Learn mode lives inside Claude. When it's on, a learning agent runs alongside Claude. Claude does the task exactly as it would anyway; the learning agent watches Claude's work and teaches you from it.</p>
+  <p><b>Three ways in.</b> A switch that's always there in the top bar; a suggestion in the moment, under a task worth learning from; and spaced review, which brings you back to something you learned in an earlier session, through the Inbox or inside a related task. The third is a growth loop as much as a learning one: it gives people a reason to return, like a streak, and spaced repetition is one of the most effective ways to make learning stick. The prototype has all three; which mix works best, and for whom, is something to A/B test.</p>
   <p><b>Out of the way, but not silent.</b> Learn mode never pauses Claude or covers your work. When it's off, it offers one small suggestion under a task, which you can wave away with ✕; once dismissed, it doesn't come back for that task. When you turn it on, it's proactive: it starts teaching as soon as there's something worth learning, and checks in when Claude writes a step you made a prediction about.</p>
   <div class="arch">
     <div class="box claude"><b>Claude (main agent)</b>Does the task at full quality. Doesn't know Learn mode exists; nothing about the learner enters its context.</div>
@@ -269,7 +269,7 @@
   <p>The prototype is a starting point, not a final answer. These are the questions we'd settle with A/B tests, each judged on the main measure (first-try refresher accuracy days later) with the same guardrails: tasks take no longer, people are no less happy with them, and switch-off and dismissal rates stay low.</p>
   <table>
     <thead><tr><th>Question</th><th>What we'd compare</th></tr></thead>
-    <tr><td>How people find it</td><td>An always-there switch, a suggestion in the moment under a task, or Learn mode as a mode in the model picker. Also the suggestion's wording, and whether it shows while Claude works or after.</td></tr>
+    <tr><td>How people find it</td><td>An always-there switch, a suggestion in the moment under a task, or Learn mode as a mode in the model picker. Also the suggestion's wording, whether it shows while Claude works or after, and how refreshers bring people back.</td></tr>
     <tr><td>Who has it on by default</td><td>On for students (set by schools), off with suggestions for professionals, and how many suggestions a day before it's too many.</td></tr>
     <tr><td>How often it speaks up</td><td>Check-ins only when Claude writes a step you predicted, or also on other new files. Refreshers in the Inbox only, or also inside related tasks.</td></tr>
     <tr><td>Show first or ask first</td><td>Opening with an interactive and then a question, against a question first. Interactives cost more, so they have to earn it.</td></tr>
