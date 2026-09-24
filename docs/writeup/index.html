@@ -147,7 +147,7 @@
     <li><b>It comes back.</b> A recap shows what moved. Days later, or when a related task comes up, a one-question refresher brings the topic back.</li>
   </ol>
   <figure class="shot"><img src="img/prototype.png" alt="The prototype: Claude has read the repo, made a plan and is writing lib/auth.ts; the Learn mode panel shows a JWT visualizer and asks the learner to predict what verifyToken() must check">
-    <figcaption>Claude is writing <code>lib/auth.ts</code> (left). Learn mode, on the right, has shown a visualizer of the token that file will issue and asks you to predict what <code>verifyToken()</code> must check before Claude writes it.</figcaption></figure>
+    <figcaption>Left: Claude is writing <code>lib/auth.ts</code> and isn't waiting on anything. Right: Learn mode has read Claude's reasoning and plan, built a visualizer of the token that file will issue, and asks you to predict what <code>verifyToken()</code> must check before Claude writes it.</figcaption></figure>
 </section>
 
 <section>
@@ -171,6 +171,8 @@
   <p>Everything it produces has to point at the step in Claude's work it's about; references to steps that don't exist are dropped. Two helpers sit beside it: a grader (Sonnet) that scores written answers against the answer key and names the misconception, and a quick check (Haiku) that decides whether a task is worth learning from at all.</p>
   <h3>When it acts</h3>
   <p>It responds to events: a task starts, you pick a goal, you answer, you pick a next step or type a question, or Claude writes a step you made a prediction about. It keeps going on its own where that helps. After you pick the files you'd open, it moves to the next question while Claude is still reading, then checks your picks against the files Claude actually opened. Once you've answered three questions on a goal, it wraps up with a recap.</p>
+  <h3>Getting ahead of Claude</h3>
+  <p>Claude never waits for Learn mode and isn't influenced by it. Learn mode gets ahead by reading Claude's reasoning as it streams and the plan Claude makes before it writes code. That's how it can ask you to predict <code>verifyToken()</code> before the file exists. In a real integration it could start even earlier, as soon as the main agent's own reasoning is available.</p>
   <h3>Why keep it on a short leash</h3>
   <p>One decision per event, a few questions per goal, and rate limits per person and per day keep cost and attention in check. The main agent is protected too: learner data never enters Claude's context, and a test fails if the main agent's code ever imports the learning code.</p>
 </section>
