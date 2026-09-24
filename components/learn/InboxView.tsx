@@ -1,6 +1,6 @@
 "use client";
-import { FastForward, RotateCcw, Repeat2 } from "lucide-react";
-import { advanceClock, DAY, dueRefreshers, now, type Refresher } from "@/lib/memory/model";
+import { FastForward, RotateCcw, Repeat2, X } from "lucide-react";
+import { advanceClock, DAY, dueRefreshers, now, snoozeRefresher, type Refresher } from "@/lib/memory/model";
 import { updateMemory, useMemory } from "@/lib/memory/store";
 
 /** Spaced-repetition inbox (SPEC J3, §10.2–10.3) with the simulated clock control. */
@@ -40,22 +40,43 @@ export function InboxView({ onOpen, threadExists }: { onOpen: (r: Refresher) => 
           <ul className="space-y-2">
             {due.map((r) => {
               const available = !!r.source && threadExists(r.source.threadId);
+              const open = () => available && onOpen(r);
               return (
-                <li key={r.topicId} className="rounded-xl border border-learn/30 bg-surface px-3.5 py-3">
-                  <div className="flex items-center gap-2 text-[14px] font-medium">
-                    <Repeat2 size={14} className="text-learn" /> {r.label}
-                    <span className="ml-auto font-mono text-[12px] font-normal text-muted">{Math.round(r.estimate * 100)}%</span>
-                  </div>
-                  <div className="mt-0.5 text-[12px] text-muted">
-                    Last practised {r.daysSince}d ago{r.source?.threadTitle ? ` · from “${r.source.threadTitle}”` : ""}
+                <li key={r.topicId} className="relative">
+                  {/* The whole card starts the refresher; the ✕ is a separate button that doesn't. */}
+                  <div
+                    role="button"
+                    tabIndex={available ? 0 : -1}
+                    aria-disabled={!available}
+                    aria-label={`Start refresher: ${r.label}`}
+                    title={available ? "Start refresher" : "The original chat isn't in this browser anymore"}
+                    onClick={open}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        open();
+                      }
+                    }}
+                    className={`rounded-xl border border-learn/30 bg-surface py-3 pr-10 pl-3.5 transition ${available ? "cursor-pointer hover:border-learn/60 hover:bg-learn/5" : "opacity-50"}`}
+                  >
+                    <div className="flex items-center gap-2 text-[14px] font-medium">
+                      <Repeat2 size={14} className="shrink-0 text-learn" /> {r.label}
+                      <span className="ml-auto font-mono text-[12px] font-normal text-muted">{Math.round(r.estimate * 100)}%</span>
+                    </div>
+                    <div className="mt-0.5 text-[12px] text-muted">
+                      Last practised {r.daysSince}d ago{r.source?.threadTitle ? ` · from “${r.source.threadTitle}”` : ""} · ~1 min
+                    </div>
                   </div>
                   <button
-                    disabled={!available}
-                    onClick={() => onOpen(r)}
-                    className="mt-2 rounded-lg bg-learn-soft px-3 py-1 text-[13px] font-medium text-learn hover:bg-learn/20 disabled:opacity-40"
-                    title={available ? "" : "The original chat isn't in this browser anymore"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      updateMemory((x) => snoozeRefresher(x, r.topicId));
+                    }}
+                    aria-label={`Dismiss refresher: ${r.label}`}
+                    title="Not now (back tomorrow)"
+                    className="absolute top-2 right-2 rounded-full p-1 text-muted hover:bg-learn/10 hover:text-text"
                   >
-                    Start refresher · ~1 min
+                    <X size={14} />
                   </button>
                 </li>
               );

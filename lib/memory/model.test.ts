@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceClock, applyEvidence, applyReviewOutcome, contextualRefresher, dueRefreshers, DAY, INTERVAL_DAYS, learnerStateFor, nextEstimate, PRIOR, scheduleReview } from "./model";
+import { advanceClock, applyEvidence, applyReviewOutcome, contextualRefresher, dueRefreshers, DAY, INTERVAL_DAYS, learnerStateFor, nextEstimate, PRIOR, scheduleReview, snoozeRefresher } from "./model";
 import { emptyMemory } from "./types";
 import type { EvidenceInput } from "./model";
 
@@ -76,6 +76,13 @@ describe("refreshers (SPEC §10.3)", () => {
     const due = dueRefreshers(advanceClock(learned(), 3));
     expect(due).toHaveLength(1);
     expect(due[0]).toMatchObject({ topicId: "jwt", daysSince: 3, source: { threadId: "t1", messageId: "m1" } });
+  });
+  it("can be dismissed for a day without resetting the review schedule", () => {
+    const m = advanceClock(learned(), 3);
+    const snoozed = snoozeRefresher(m, "jwt");
+    expect(dueRefreshers(snoozed)).toHaveLength(0);
+    expect(snoozed.mastery.jwt.intervalIdx).toBe(m.mastery.jwt.intervalIdx);
+    expect(dueRefreshers(advanceClock(snoozed, 1))).toHaveLength(1);
   });
   it("prefer direct recurrence over interleaving", () => {
     const m = learned();

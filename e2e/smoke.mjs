@@ -186,8 +186,16 @@ await journey("J3 refreshers: persist → +3 days → Inbox refresher → interl
   await p.getByText("Build a login page with JWT aut").first().waitFor({ timeout: 5000 });
   await p.getByLabel(/learning refreshers due/).click();
   await p.getByRole("button", { name: "+3 days" }).click();
-  if ((await p.getByText("Start refresher · ~1 min").count()) < 1) throw new Error("no refreshers due after +3 days");
-  await p.getByText("Start refresher · ~1 min").first().click();
+  const cards = p.getByRole("button", { name: /^Start refresher:/ });
+  if ((await cards.count()) < 1) throw new Error("no refreshers due after +3 days");
+  // ✕ snoozes a card without opening it: the Inbox stays on screen and the card is gone.
+  const due = await cards.count();
+  await p.getByRole("button", { name: /^Dismiss refresher:/ }).first().click();
+  if ((await cards.count()) !== due - 1) throw new Error("dismiss didn't remove the card");
+  await p.getByText("Due for a refresher").waitFor({ timeout: 2000 }); // still in the Inbox, nothing opened
+  await p.getByRole("button", { name: "+3 days" }).click(); // snoozed for a day, so it's back
+  await cards.first().waitFor({ timeout: 3000 });
+  await cards.first().click(); // the whole card starts it
   await answerWith(p, "The payload is only base64 so anyone can read it; the HMAC signature with the secret stops tampering.");
   await p.getByText("Session recap").waitFor({ timeout: 10000 });
   await p.getByRole("button", { name: "New", exact: true }).click();

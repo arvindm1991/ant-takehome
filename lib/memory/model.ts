@@ -100,6 +100,14 @@ export function applyReviewOutcome(m: LearnerMemory, topicId: TopicId, verdict: 
   return scheduleReview({ ...m, mastery: { ...m.mastery, [id]: { ...r, intervalIdx } } }, [id]);
 }
 
+/** "Not now" on an Inbox refresher: bring it back later without counting it as a review. */
+export function snoozeRefresher(m: LearnerMemory, topicId: TopicId, days = 1): LearnerMemory {
+  const id = normalizeTopicId(topicId);
+  const r = m.mastery[id];
+  if (!r) return m;
+  return { ...m, mastery: { ...m.mastery, [id]: { ...r, nextDue: now(m) + days * DAY } } };
+}
+
 export function upsertEpisode(m: LearnerMemory, ep: Episode): LearnerMemory {
   const i = m.episodes.findIndex((e) => e.id === ep.id);
   const episodes = i >= 0 ? m.episodes.map((e, j) => (j === i ? ep : e)) : [...m.episodes, ep];
