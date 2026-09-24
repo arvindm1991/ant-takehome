@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learn mode</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  :root {
+    --paper: #f7f4ec;
+    --ink: #1f1e1b;
+    --muted: #6b675e;
+    --rule: #e2ddd0;
+    --accent: #c46a3b;   /* Claude-ish clay, for Claude's side */
+    --learn: #5a5fd6;    /* Learn mode indigo, for the learning side */
+    --card: #fffdf7;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--paper); }
+  body {
+    margin: 0 auto; max-width: 760px; padding: 56px 28px 72px;
+    color: var(--ink); background: var(--paper);
+    font: 15.5px/1.6 "Inter", "Liberation Sans", system-ui, sans-serif;
+  }
+  h1, h2, .lede, .pull { font-family: "Newsreader", "Liberation Serif", Georgia, serif; }
+  h1 { font-size: 44px; font-weight: 500; line-height: 1.08; letter-spacing: -0.01em; margin: 0 0 10px; }
+  h2 { font-size: 26px; font-weight: 500; margin: 0 0 10px; line-height: 1.2; }
+  h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 22px 0 6px; }
+  p { margin: 0 0 12px; }
+  a { color: var(--learn); text-decoration: none; }
+  .meta { color: var(--muted); font-size: 13.5px; margin-bottom: 28px; }
+  .meta span + span::before { content: " · "; }
+  .lede { font-size: 21px; line-height: 1.45; margin: 0 0 8px; }
+  section { padding: 30px 0 8px; border-top: 1px solid var(--rule); }
+  section:first-of-type { border-top: 0; padding-top: 8px; }
+  .kicker { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+  figure { margin: 16px 0 18px; }
+  figure img { display: block; width: 100%; height: auto; border-radius: 10px; }
+  figcaption { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .shot img { border: 1px solid var(--rule); }
+  .meme img { max-width: 560px; margin: 0 auto; }
+  .pull { font-size: 20px; line-height: 1.4; border-left: 3px solid var(--learn); padding: 2px 0 2px 16px; margin: 16px 0; }
+  ul { margin: 0 0 12px; padding-left: 20px; }
+  li { margin: 4px 0; }
+  li b, p b { font-weight: 600; }
+  .steps { counter-reset: s; list-style: none; padding: 0; }
+  .steps li { counter-increment: s; position: relative; padding-left: 34px; margin: 9px 0; }
+  .steps li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--learn); color: #fff; font-size: 12px; font-weight: 600; display: grid; place-items: center; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 6px 0 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+  th { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  td:first-child { font-weight: 600; width: 34%; }
+  .arch { display: grid; grid-template-columns: 1fr 44px 1fr; align-items: center; margin: 14px 0 18px; }
+  .box { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; font-size: 13.5px; line-height: 1.45; }
+  .box b { display: block; font-size: 14px; margin-bottom: 2px; }
+  .box.claude { border-top: 3px solid var(--accent); }
+  .box.learn { border-top: 3px solid var(--learn); }
+  .arrow { text-align: center; color: var(--muted); font-size: 12px; line-height: 1.2; }
+  .arrow i { display: block; font-style: normal; font-size: 20px; color: var(--learn); }
+  .note { font-size: 13px; color: var(--muted); }
+  @media (max-width: 640px) {
+    body { padding: 32px 16px 56px; }
+    h1 { font-size: 34px; }
+    .pair, .arch { grid-template-columns: 1fr; }
+    .arrow i { transform: rotate(90deg); }
+  }
+  @page { size: Letter; margin: 14mm 14mm 16mm; }
+  @media print {
+    body { max-width: none; padding: 0; font-size: 12.5px; line-height: 1.5; }
+    h1 { font-size: 36px; }
+    h2 { font-size: 21px; }
+    .lede { font-size: 17px; }
+    .pull { font-size: 16.5px; }
+    section { padding-top: 18px; break-inside: auto; }
+    figure, .arch, table, .pull, .steps li { break-inside: avoid; }
+    h2, h3, .kicker { break-after: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">Education Labs take-home · Option B</div>
+  <h1>Learn mode</h1>
+  <p class="lede">Claude does the work. You learn from it while it happens.</p>
+  <div class="meta">
+    <span>Arvind</span>
+    <span><a href="https://ant-takehome.vercel.app">ant-takehome.vercel.app</a></span>
+    <span><a href="https://github.com/arvindm1991/ant-takehome">github.com/arvindm1991/ant-takehome</a></span>
+  </div>
+</header>
+
+<section>
+  <div class="kicker">The problem</div>
+  <h2>The work still gets done. The skill doesn't get built.</h2>
+  <div class="pair">
+    <figure><img src="img/forklift-gym.png" alt="A forklift lifting a barbell in a gym"></figure>
+    <figure><img src="img/microwave-rust.png" alt="A microwave meal next to rusting pots and dull knives"></figure>
+  </div>
+  <p>Skill comes from the friction of doing the work. Agents remove that friction by default: the weight gets lifted and the meal gets made, and the muscle, the knives and the pots go unused. Showing more steps doesn't fix it. Claude already shows its reasoning and code, and people skip to the answer.</p>
+  <p>The upside is that this isn't learning for its own sake. The task is real, the user just asked for it, and an expert is doing it right now. That is the best moment to learn, like training on a shop floor while a master does the job.</p>
+  <p class="pull">We need to put back just enough friction, while the work is being done, without slowing the work down.</p>
+</section>
+
+<section>
+  <div class="kicker">Why Option B, and why inside Claude</div>
+  <h2>People queue at the counter that finishes the task</h2>
+  <figure class="meme"><img src="img/two-counters.jpg" alt="Two counters: a short line at 'teaches you how to do a task yourself', a huge crowd at 'finishes the task autonomously'"></figure>
+  <p>When something needs doing, people go where it gets done quickly. That's why so many good learning products get little use; I've built some of them. A separate, high-friction learning app is counter 1: good for the few who choose it, empty for everyone else.</p>
+  <p>So I didn't build counter 1. <b>Learn mode puts the teaching at counter 2</b>, inside the Claude session where the queue already is, and it never makes the task wait. That is Option B, turning AI-assisted work into learning, placed where it can actually reach people.</p>
+</section>
+
+<section>
+  <div class="kicker">The solution</div>
+  <h2>A learning agent that watches Claude work and teaches you from it</h2>
+  <div class="arch">
+    <div class="box claude"><b>Claude (main agent)</b>Does the task at full quality. Never knows Learn mode exists; no learner data enters its context.</div>
+    <div class="arrow"><i>→</i>read-only</div>
+    <div class="box learn"><b>Learn mode (learning agent)</b>Reads Claude's plan, files and reasoning as they arrive. Teaches from them, grounded in Claude's actual code.</div>
+  </div>
+  <h3>One journey: “Build a login page with JWT auth for this app”</h3>
+  <ol class="steps">
+    <li><b>Turn on Learn mode</b> (or tap the chip under a task). Claude starts working; you are never in its way.</li>
+    <li><b>Pick what to learn.</b> Goal cards come from the task itself: where login plugs into this repo, what a server must check before it trusts a JWT, why bcrypt and not SHA-256.</li>
+    <li><b>See it first.</b> An interactive built from Claude's code, such as a visualizer that decodes the exact token Claude's login will issue.</li>
+    <li><b>Predict before Claude writes it.</b> “What must <code>verifyToken()</code> check?” When the file lands, Learn mode checks your prediction against the real code and links to the line.</li>
+    <li><b>Go where you want.</b> Dig deeper, zoom out or try it hands-on; after a miss, get a hint, an interactive, or the exact spot in Claude's code.</li>
+    <li><b>It comes back.</b> A recap shows how your mastery moved. Days later, or when a related task comes up, a one-question refresher brings the topic back.</li>
+  </ol>
+  <figure class="shot"><img src="img/prototype.png" alt="The prototype: Claude working in the main thread, Learn mode on the right with a JWT visualizer and a prediction question">
+    <figcaption>The prototype: Claude building auth on the left; Learn mode on the right, opening with a token visualizer before asking for a prediction.</figcaption></figure>
+</section>
+
+<section>
+  <div class="kicker">Design and prototyping process</div>
+  <h2>From the obvious idea to the one that ships</h2>
+  <ul>
+    <li><b>Rejected the default.</b> Every frontier model I sparred with (Claude included) first proposed pausing the agent at decision points so the user steers. That caps quality at the learner's skill and fills the agent's context with guesses. The user rides in the front passenger seat, not the driver's.</li>
+    <li><b>Spec first.</b> A written spec with a numbered decision log, then milestones: shell and main agent, learning loop, memory, supporting moves, refreshers, ship.</li>
+    <li><b>Real Claude API throughout.</b> Main agent with streamed reasoning; a separate learning agent using tools; a small model deciding whether a task is worth learning from; interactives generated on demand.</li>
+    <li><b>Iterated on real use.</b> A blank chat box read as “a second Claude”, so it became goal cards and next moves. That felt like homework, so it became show-don't-tell with one text box of its own, and on means on. Then it was made to work on a phone.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="kicker">Human agency</div>
+  <h2>It enhances judgment instead of replacing work</h2>
+  <ul>
+    <li><b>Claude still does the task, fully.</b> Learning never blocks, slows or steers it.</li>
+    <li><b>You choose</b> whether to learn, what, and how deep. Everything can be dismissed, and Learn mode is one switch.</li>
+    <li><b>Understand before you review.</b> Knowing why Claude made each choice is what lets you oversee it and push back.</li>
+    <li><b>It never does the task for you.</b> It asks, shows and checks. It asks about Claude's choices rather than judging them, since it doesn't have Claude's full context.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="kicker">Learning principles</div>
+  <h2>What the design borrows from how people learn</h2>
+  <table>
+    <tr><th>Principle</th><th>Where it shows up</th></tr>
+    <tr><td>Apprenticeship</td><td>An expert does the real task while a coach explains, asks and checks.</td></tr>
+    <tr><td>Just-in-time relevance</td><td>Topics come from the task you just asked for, so there's no need to persuade you they matter.</td></tr>
+    <tr><td>Prediction and retrieval</td><td>You predict before the code exists, then compare against what Claude wrote.</td></tr>
+    <tr><td>Active over passive</td><td>Interactives you manipulate rather than read. A “watch the agent” mind map was dropped: it feels like teaching without evidence of learning.</td></tr>
+    <tr><td>Scaffolding</td><td>Hints, never answers; an easier question or an interactive after a miss.</td></tr>
+    <tr><td>Spacing and interleaving</td><td>Refreshers at growing intervals, and when a related task comes up.</td></tr>
+    <tr><td>A model of the learner</td><td>Mastery, evidence and misconceptions decide the next move and skip what you already know.</td></tr>
+  </table>
+</section>
+
+<section>
+  <div class="kicker">Measuring success</div>
+  <h2>Measure learning, not engagement</h2>
+  <ul>
+    <li><b>North star:</b> first-try accuracy on refreshers taken days later, in a different task. That measures retention and transfer, not time spent.</li>
+    <li><b>Learning curve:</b> mastery over time per topic; misconceptions resolved.</li>
+    <li><b>Adoption:</b> offered → opened → first answer → session completed, compared across entry points (switch vs chip).</li>
+    <li><b>Guardrails:</b> no change to task completion time or satisfaction; switch-off rate; how often people type task requests into Learn mode's box.</li>
+    <li><b>Quality evals</b> for the learning agent: grounded in Claude's code, no spoilers, grader agrees with humans, shows before it tells.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="kicker">Scale</div>
+  <h2>Built to reach millions without a new app</h2>
+  <ul>
+    <li><b>Distribution is built in:</b> it's a switch in Claude and Claude Code, not a destination.</li>
+    <li><b>Works in any domain:</b> topics come from the work itself, not a hand-built curriculum. The demo is code; the same loop fits writing and analysis.</li>
+    <li><b>Segments:</b> on by default for students (set by schools); off for professionals, with a light nudge budget; deeper stretch goals and review for power users.</li>
+    <li><b>Cost scales with engagement:</b> it runs only when on; cheaper models (Sonnet, Haiku) watch and decide; Opus builds interactives only when someone asks to see or try something; prompts put stable context first so it can be cached.</li>
+    <li><b>Rollout:</b> feature flag, then A/B on entry points, graduating on the north star with guardrails intact.</li>
+  </ul>
+  <p class="note">Prototype notes: the repository and agent pacing are simulated and labelled in the app; learner memory lives in the browser. Model calls are real when an API key is set.</p>
+</section>
+
+</body>
+</html>
