@@ -17,7 +17,7 @@
 ## 2. Setup
 
 - **Mock (local):** `npm run build && npx next start -p 3100`, then `BASE_URL=http://localhost:3100 npm run smoke`.
-- **Live:** https://ant-takehome.vercel.app. First confirm there's no **Mock** badge in the header (live mode shows none).
+- **Live:** https://ant-takehome.vercel.app. First confirm the header shows the **PROTOTYPE** chip without a **Mock** marker.
 - **Clean state:** *Your progress → Reset memory*, and clear site data to drop saved chats. Use a private window for first-run tests.
 - **Time travel:** *Inbox → Prototype clock → +3 days* (and ↺ to return to real time).
 - **Record** every live session in the results log (§7): task, which models, verdicts, rubric scores, anything surprising.
@@ -43,7 +43,7 @@ Mode: **M** = mock (deterministic) · **L** = live · **M/L** = both.
 
 | ID | Scenario | Expected | Mode | Pri |
 |---|---|---|---|---|
-| B1 | Header badge: no key, key set, credits run out | *Mock* badge with no key; no badge with a working key; after a credit-balance error the request still gets a scripted answer and the *Mock* badge appears within a minute (unit-tested: `lib/credits.test.ts`) | M/L | P0 |
+| B1 | Header badge: no key, key set, credits run out | PROTOTYPE chip always; *Mock* marker next to it with no key, none with a working key; after a credit-balance error the request still gets a scripted answer and the *Mock* badge appears within a minute (unit-tested: `lib/credits.test.ts`) | M/L | P0 |
 | B2 | Per-response note on a task | Mock: "scripted response (mock mode)…" · Live: "steps are revealed at a simulated agent pace…" | M/L | P0 |
 | B3 | Learning panel marker | "scripted mock" tag only when the learning agent is mocked | M/L | P1 |
 | B4 | Widget footer | "Pre-built demo widget (mock mode)" vs "Built by Claude for this session" | M/L | P1 |

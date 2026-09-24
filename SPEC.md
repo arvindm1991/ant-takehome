@@ -172,7 +172,7 @@ type ThreadItem = {
 ## 8. Main agent (MA)
 
 - **Quick questions first:** a fast Haiku check (`lib/main/triage.ts`) answers short factual or conversational questions directly, with no thinking and no pacing. Everything else goes to the main model.
-- **Out of credits:** if any call hits a credit-balance error, the server switches to the scripted fallback for the rest of its life, retries that request on it, and `/api/status` reports mock (the header shows a *Mock* badge; live mode shows none).
+- **Out of credits:** if any call hits a credit-balance error, the server switches to the scripted fallback for the rest of its life, retries that request on it, and `/api/status` reports mock (the header's PROTOTYPE chip gains a *Mock* marker; live mode shows only the chip).
 - **One real Claude call** per user turn to `/api/main`, using structured output:
   ```ts
   { complexity: "trivial" | "task",

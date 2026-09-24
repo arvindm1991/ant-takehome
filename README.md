@@ -19,7 +19,7 @@ The main agent never knows the learning agent exists, and the task never waits o
 
 ## What's live and what's simulated
 
-With a working API key there's no mode badge. If there's no key, or the API credits run out, the app switches to its scripted fallback and shows a **Mock** badge (click it for details).
+The header always shows a **PROTOTYPE** chip (click it for what's simulated). If there's no API key, or the API credits run out, the app switches to its scripted fallback and a **Mock** marker appears next to it.
 
 | Live Claude API calls (with `ANTHROPIC_API_KEY`) | Simulated for the prototype |
 | --- | --- |

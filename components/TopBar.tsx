@@ -19,7 +19,7 @@ type Props = {
 export function TopBar({ learnOn, onToggleLearn, dueCount, status, onBell, onMenu, showMenu }: Props) {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-bg from-60% to-transparent px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-5 sm:px-5">
-      <span className="pointer-events-auto flex min-w-0 items-center gap-1 overflow-hidden">
+      <span className="pointer-events-auto flex min-w-0 items-center gap-1">
         <button onClick={onMenu} aria-label="Open chats" title="Show chats" className={`rounded-lg p-1.5 text-text/85 hover:bg-raised ${showMenu ? "" : "xl:hidden"}`}>
           {showMenu ? <PanelLeftOpen size={19} strokeWidth={1.75} className="hidden xl:block" /> : null}
           <Menu size={20} strokeWidth={1.75} className={showMenu ? "xl:hidden" : ""} />
