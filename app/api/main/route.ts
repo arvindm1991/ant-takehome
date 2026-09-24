@@ -3,6 +3,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { buildMainRequest, type MainRequestInput } from "@/lib/main/request";
 import { MainResultSchema, type MainEvent } from "@/lib/main/schema";
 import { mockResponse } from "@/lib/main/mock";
+import { clip, guard } from "@/lib/rateLimit";
 
 export const maxDuration = 300;
 
@@ -11,10 +12,18 @@ const line = (e: MainEvent) => encoder.encode(JSON.stringify(e) + "\n");
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function POST(req: Request) {
-  const input = (await req.json()) as MainRequestInput;
-  if (!input?.prompt || typeof input.prompt !== "string") {
+  const blocked = guard(req, "main");
+  if (blocked) return blocked;
+  const raw = (await req.json()) as MainRequestInput;
+  if (!raw?.prompt || typeof raw.prompt !== "string") {
     return Response.json({ error: "prompt required" }, { status: 400 });
   }
+  const input: MainRequestInput = {
+    prompt: clip(raw.prompt, 4000),
+    history: (Array.isArray(raw.history) ? raw.history : [])
+      .slice(-20)
+      .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: clip(m.content, 4000) })),
+  };
   const useMock = !process.env.ANTHROPIC_API_KEY || process.env.MOCK_MAIN === "1";
 
   const stream = new ReadableStream<Uint8Array>({

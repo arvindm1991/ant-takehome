@@ -171,7 +171,10 @@ export function useThreads(opts: UseThreadsOptions = {}) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt, history }),
         });
-        if (!res.ok || !res.body) throw new Error(`Request failed (${res.status})`);
+        if (!res.ok || !res.body) {
+          const msg = await res.json().then((j: { error?: string }) => j.error, () => undefined);
+          throw new Error(msg ?? `Request failed (${res.status})`);
+        }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buf = "";

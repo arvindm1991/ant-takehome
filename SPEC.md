@@ -51,6 +51,7 @@ A **learning sub-agent** that rides alongside Claude's main agent in regular Cla
 | D15 | **MA reasoning is streamed for real** (summarized thinking) while it works; only the reveal of the final steps is paced | Honest, chat-app-like experience during the 30–60 s wait. The stream also gives the LSA early signal. |
 | D16 | **Widgets are generated freely by Opus** (sliders and interactive HTML). **Quizzes (MCQ, etc.) use templates** | Opus reliably builds small interactive HTML. Templates keep assessments consistent and gradeable. We pre-test on the demo path. |
 | D18 | **Simulated existing repo** ("acme-notes", a small Next.js app with no auth) is given to the MA as context. The MA emits `read` steps for the files it consults. A visible *Prototype note* says the repo is simulated | Makes the demo feel like real agent work in an existing codebase, and gives the approach MCQs a grounded answer key: the files the MA actually chose to read. |
+| D19 | **Per-IP rate limits + daily cap + input caps** on every model-calling route (live mode only); in-memory for the prototype | The public demo URL exposes paid model calls; production would use a shared store (e.g. Redis) and auth |
 | D17 | **Prototype polish focuses on one journey: the auth page.** Other suggested tasks work but aren't tuned | The brief asks for depth on one interaction pattern. The design is general; the demo is specific. |
 
 ## 5. User journeys
@@ -384,6 +385,8 @@ evals/                     # stretch
 | M5 | Refreshers | +3 days control; badge and Inbox; open a card to start a new session on the old thread; contextual chip on a related task |
 | M6 | Polish & ship | Instrumentation log; deploy to Vercel; README; seeded demo path verified end to end |
 | M7 | Stretch | Eval harness for groundedness / no-leak / misprint; discovery `?arm=` |
+
+**Status:** M1–M5 done. M6: deploy, README and rate limiting done; the §13 analytics events are specified but not emitted. M7 not started (a manual rubric in `docs/TEST_PLAN.md` stands in for evals). Beyond the plan: UI modelled on the Claude desktop app, labelling of live vs simulated parts, and a browser smoke test (`npm run smoke`).
 
 ## 19. Considered, not built: the Mind-Map tab
 
