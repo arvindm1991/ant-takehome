@@ -159,7 +159,7 @@
 
 <section>
   <h2>How the learning agent works</h2>
-  <p>It's a real agent, kept on a short leash. It chooses its own actions with tools, remembers the learner across sessions, and works toward the goal the learner picked. It doesn't run unattended: it acts when something happens, one decision at a time.</p>
+  <p>It's a real agent. It chooses its own actions with tools, remembers the learner across sessions, and works toward the goal the learner picked.</p>
   <h3>What it sees each turn</h3>
   <ul>
     <li>What you asked Claude, and Claude's steps so far: plan, files read, code written. Steps Claude hasn't shown yet appear by name only, so it can ask you to predict them without giving them away.</li>
@@ -181,8 +181,6 @@
   <p>It responds to events: a task starts, you pick a goal, you answer, you pick a next step or type a question, or Claude writes a step you made a prediction about. It keeps going on its own where that helps. After you pick the files you'd open, it moves to the next question while Claude is still reading, then checks your picks against the files Claude actually opened. Once you've answered three questions on a goal, it wraps up with a recap.</p>
   <h3>Getting ahead of Claude</h3>
   <p>Claude never waits for Learn mode and isn't influenced by it. Learn mode gets ahead by reading Claude's reasoning as it streams and the plan Claude makes before it writes code. That's how it can ask you to predict <code>verifyToken()</code> before the file exists. In a real integration it could start even earlier, as soon as the main agent's own reasoning is available.</p>
-  <h3>Why keep it on a short leash</h3>
-  <p>One decision per event, a few questions per goal, and rate limits per person and per day keep cost and attention in check. The main agent is protected too: learner data never enters Claude's context, and a test fails if the main agent's code ever imports the learning code.</p>
 </section>
 
 <section>
