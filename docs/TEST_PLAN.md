@@ -213,7 +213,7 @@ Mode: **M** = mock (deterministic) · **L** = live · **M/L** = both.
 | P2 | Mastered topic (≥ 70%) among the cards | Collapsed under "Already solid (n)", with "review anyway" | M/L | P1 | — |
 | P3 | Next moves after correct / miss / open question / explanation | Buttons match the §9.6 table; *Dig deeper* and *Zoom out* name their targets, and the next question is about that target | M/L | P0 | unit + smoke |
 | P4 | No auto-advance | After grading, the learning agent waits for a move (except the approach MCQ during the agent run and the wrap-up) | M/L | P0 | smoke |
-| P5 | Arc and breadcrumb | Header shows "Move k of N" and the concepts covered; recap appears when the arc is complete | M/L | P0 | unit + smoke |
+| P5 | Arc and breadcrumb | Header shows the goal and the concepts covered (no move counter); recap appears when the arc is complete | M/L | P0 | unit + smoke |
 | P6 | Recap | Covered concepts, before → after mastery bars, *Keep going* extends the arc, *Pick another goal* returns to the cards | M/L | P1 | smoke |
 | P7 | Proactive nudge | When the predicted file appears: "Check my prediction"; otherwise the newest file since the goal: "Quiz me on it". Stays until acted on or *Later*; never repeats | M/L | P0 | unit + smoke |
 | P8 | Interactives first | JWT goal opens with the token visualizer; "See how it works" always shows an interactive (live: `tool_choice` forces `demonstrate`, unit-tested); widgets use Learn mode's palette | M/L | P0 | smoke |

@@ -41,6 +41,11 @@
   .float-r { float: right; margin-left: 22px; }
   .float-l { float: left; margin-right: 22px; }
   .float-r.wide { width: 46%; }
+  .float-r.panel { width: 34%; }
+  blockquote { margin: 4px 0 14px; padding: 10px 14px; background: var(--card); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; font-size: 14.5px; }
+  blockquote cite { display: block; margin-top: 4px; font-size: 12px; font-style: normal; color: var(--muted); }
+  h2 { margin-top: 2px; }
+  td code, li code, p code { font-size: 0.92em; }
   .stack { width: 36%; }
   .stack img + img { margin-top: 10px; }
   .pull { overflow: hidden; }
@@ -81,7 +86,9 @@
     .lede { font-size: 17px; }
     .pull { font-size: 16.5px; }
     section { padding-top: 18px; break-inside: auto; }
-    figure, .arch, table, .pull, .steps li { break-inside: avoid; }
+    figure, .arch, tr, .pull, .steps li, blockquote { break-inside: avoid; }
+    section { padding-top: 14px; }
+    h3 { margin-top: 14px; }
     h2, h3, .kicker { break-after: avoid; }
   }
 </style>
@@ -100,103 +107,142 @@
 </header>
 
 <section>
-  <div class="kicker">The problem</div>
-  <h2>The work still gets done. The skill doesn't get built.</h2>
+  <h2>The problem</h2>
+  <blockquote>“When AI agents handle complex tasks autonomously, humans can become passive observers rather than active learners, missing opportunities to develop their own skills and understanding.”<cite>The brief, challenge 2: Cognitive engagement</cite></blockquote>
   <figure class="float-r stack"><img src="img/forklift-gym.png" alt="A forklift lifting a barbell in a gym"><img src="img/microwave-rust.png" alt="A microwave meal next to rusting pots and dull knives"></figure>
-  <p>Skill comes from the friction of doing the work. Agents remove that friction by default: the weight gets lifted and the meal gets made, and the muscle, the knives and the pots go unused. Showing more steps doesn't fix it. Claude already shows its reasoning and code, and people skip to the answer.</p>
-  <p>The upside is that this isn't learning for its own sake. The task is real, the user just asked for it, and an expert is doing it right now. That is the best moment to learn, like training on a shop floor while a master does the job.</p>
-  <p class="pull">We need to put back just enough friction, while the work is being done, without slowing the work down.</p>
+  <p>That's the problem I took on. Agents are a forklift in the gym and a microwave in the kitchen: the work gets done, but the muscle doesn't grow, the knives go dull and the pots rust. Showing more of the work doesn't fix it. Claude already shows its reasoning and code, and people skip to the answer.</p>
+  <p>The good news: unlike a course, this isn't learning for its own sake. The task is real, the person just asked for it, and an expert is doing it right now. It's on-the-job training, where you learn the job while a skilled hand does it.</p>
+  <p class="pull">The goal: add back the right amount of effort for the learner while the work gets done, without slowing the work down.</p>
 </section>
 
 <section>
-  <div class="kicker">Why Option B, and why inside Claude</div>
-  <h2>People queue at the counter that finishes the task</h2>
+  <h2>Why Option B</h2>
+  <p>Option A is customer education: teaching people Claude's features. Option B is general education: helping people get better at their own work, whether that's programming, writing or analysis. B is the bigger opportunity. Finding features matters, but people losing their own skills is the bigger risk, and it grows as agents take on more of the work.</p>
+  <p>B also helps with A. Someone who understands what Claude did, and why, is better at checking its work and directing it next time.</p>
+</section>
+
+<section>
+  <h2>Why inside Claude, not a separate app</h2>
   <figure class="float-r wide"><img src="img/two-counters.jpg" alt="Two counters: a short line at 'teaches you how to do a task yourself', a huge crowd at 'finishes the task autonomously'"></figure>
-  <p>When something needs doing, people go where it gets done quickly. That's why so many good learning products get little use; I've built some of them. A separate, high-friction learning app is counter 1: good for the few who choose it, empty for everyone else.</p>
-  <p>So I didn't build counter 1. <b>Learn mode puts the teaching at counter 2</b>, inside the Claude session where the queue already is, and it never makes the task wait. That is Option B, turning AI-assisted work into learning, placed where it can actually reach people.</p>
+  <p>When something needs doing, people go where it gets done fastest. That's why so many good learning products get little use; I've built some of them. A separate learning app that makes you work for the answer is counter 1: good for the few who choose it, empty for everyone else.</p>
+  <p>So I didn't build counter 1. <b>Learn mode puts the teaching at counter 2</b>, inside the Claude session where people already are, and it never makes the task wait.</p>
 </section>
 
 <section>
-  <div class="kicker">The solution</div>
-  <h2>A learning agent that watches Claude work and teaches you from it</h2>
+  <h2>What I built</h2>
+  <p>Learn mode is a switch in Claude. When it's on, a learning agent runs alongside Claude. Claude does the task exactly as it would anyway; the learning agent watches Claude's work and teaches you from it.</p>
   <div class="arch">
-    <div class="box claude"><b>Claude (main agent)</b>Does the task at full quality. Never knows Learn mode exists; no learner data enters its context.</div>
+    <div class="box claude"><b>Claude (main agent)</b>Does the task at full quality. Doesn't know Learn mode exists; nothing about the learner enters its context.</div>
     <div class="arrow"><i>→</i>read-only</div>
-    <div class="box learn"><b>Learn mode (learning agent)</b>Reads Claude's plan, files and reasoning as they arrive. Teaches from them, grounded in Claude's actual code.</div>
+    <div class="box learn"><b>Learn mode (learning agent)</b>Reads Claude's plan, files and code as they appear, and teaches from them.</div>
   </div>
-  <figure class="float-r wide"><img src="img/prototype.png" alt="The prototype: Claude working in the main thread, Learn mode on the right with a JWT visualizer and a prediction question">
-    <figcaption>The prototype: Claude building auth on the left; Learn mode on the right, opening with a token visualizer before asking for a prediction.</figcaption></figure>
+  <figure class="float-r panel"><img src="img/prototype.png" alt="The Learn mode panel: a goal, a JWT visualizer built from Claude's code, next steps and Learn mode's own text box">
+    <figcaption>The Learn mode panel: an interactive first, then a prediction.</figcaption></figure>
   <h3>One journey: “Build a login page with JWT auth for this app”</h3>
   <ol class="steps">
-    <li><b>Turn on Learn mode</b> (or tap the chip under a task). Claude starts working; you are never in its way.</li>
-    <li><b>Pick what to learn.</b> Goal cards come from the task itself: where login plugs into this repo, what a server must check before it trusts a JWT, why bcrypt and not SHA-256.</li>
-    <li><b>See it first.</b> An interactive built from Claude's code, such as a visualizer that decodes the exact token Claude's login will issue.</li>
-    <li><b>Predict before Claude writes it.</b> “What must <code>verifyToken()</code> check?” When the file lands, Learn mode checks your prediction against the real code and links to the line.</li>
-    <li><b>Go where you want.</b> Dig deeper, zoom out or try it hands-on; after a miss, get a hint, an interactive, or the exact spot in Claude's code.</li>
-    <li><b>It comes back.</b> A recap shows how your mastery moved. Days later, or when a related task comes up, a one-question refresher brings the topic back.</li>
+    <li><b>Turn on Learn mode</b> (or tap the suggestion under a task). Claude starts working; you're never in its way.</li>
+    <li><b>Pick what to learn.</b> Goals come from the task itself: where login plugs into this repo, what a server must check before it trusts a login token, why passwords are hashed with bcrypt.</li>
+    <li><b>See it first.</b> An interactive built from Claude's code, like a visualizer that decodes the token Claude's login will issue.</li>
+    <li><b>Predict before Claude writes it.</b> “What must <code>verifyToken()</code> check?” When the file appears, Learn mode checks your answer against the real code and links to the line.</li>
+    <li><b>Go where you want.</b> Go deeper, step sideways or try it hands-on. After a miss: a hint, an interactive, or the exact spot in Claude's code.</li>
+    <li><b>It comes back.</b> A recap shows what moved. Days later, or when a related task comes up, a one-question refresher brings the topic back.</li>
   </ol>
 </section>
 
 <section>
-  <div class="kicker">Design and prototyping process</div>
-  <h2>From the obvious idea to the one that ships</h2>
+  <h2>How the learning agent works</h2>
+  <p>It's a real agent, kept on a short leash. It chooses its own actions with tools, remembers the learner across sessions, and works toward the goal the learner picked. It doesn't run unattended: it acts when something happens, one decision at a time.</p>
+  <h3>What it sees each turn</h3>
   <ul>
-    <li><b>Rejected the default.</b> Every frontier model I sparred with (Claude included) first proposed pausing the agent at decision points so the user steers. That caps quality at the learner's skill and fills the agent's context with guesses. The user rides in the front passenger seat, not the driver's.</li>
-    <li><b>Spec first.</b> A written spec with a numbered decision log, then milestones: shell and main agent, learning loop, memory, supporting moves, refreshers, ship.</li>
-    <li><b>Real Claude API throughout.</b> Main agent with streamed reasoning; a separate learning agent using tools; a small model deciding whether a task is worth learning from; interactives generated on demand.</li>
-    <li><b>Iterated on real use.</b> A blank chat box read as “a second Claude”, so it became goal cards and next moves. That felt like homework, so it became show-don't-tell with one text box of its own, and on means on. Then it was made to work on a phone.</li>
+    <li>What you asked Claude, and Claude's steps so far: plan, files read, code written. Steps Claude hasn't shown yet appear by name only, so it can ask you to predict them without giving them away.</li>
+    <li>What it knows about you: how well you know each topic, mistakes you keep making, your last few answers.</li>
+    <li>Your goal and the conversation so far.</li>
+    <li>A one-line teaching approach chosen by code from your level. For example: new to this, so show it first; missed twice, so show it and then ask something easier.</li>
+  </ul>
+  <h3>What it can do</h3>
+  <table>
+    <tr><th>Tool</th><th>What it's for</th></tr>
+    <tr><td>Suggest goals</td><td>4–5 things worth learning from this task, from where to look in the repo to a stretch goal.</td></tr>
+    <tr><td>Ask a question</td><td>Predict the next step, explain it back, “what if…”, or pick the files you'd open. It writes the answer key from Claude's code.</td></tr>
+    <tr><td>Build an interactive</td><td>Its preferred way to teach. A separate Opus call builds it from Claude's code and runs it in a sandbox with no network access.</td></tr>
+    <tr><td>Hint · Explain · Wrap up</td><td>A nudge that never gives the answer; a short explanation tied to Claude's code; a recap when the goal is done.</td></tr>
+  </table>
+  <p>Everything it produces has to point at the step in Claude's work it's about; references to steps that don't exist are dropped. Two helpers sit beside it: a grader (Sonnet) that scores written answers against the answer key and names the misconception, and a quick check (Haiku) that decides whether a task is worth learning from at all.</p>
+  <h3>When it acts</h3>
+  <p>It responds to events: a task starts, you pick a goal, you answer, you pick a next step or type a question, or Claude writes a step you made a prediction about. It keeps going on its own where that helps. After you pick the files you'd open, it moves to the next question while Claude is still reading, then checks your picks against the files Claude actually opened. Once you've answered three questions on a goal, it wraps up with a recap.</p>
+  <h3>Why keep it on a short leash</h3>
+  <p>One decision per event, a few questions per goal, and rate limits per person and per day keep cost and attention in check. The main agent is protected too: learner data never enters Claude's context, and a test fails if the main agent's code ever imports the learning code.</p>
+</section>
+
+<section>
+  <h2>How it remembers what you know</h2>
+  <ul>
+    <li><b>The model grades, code keeps score.</b> The grader says right, partly right or wrong. Plain code turns that into a score, so scores are consistent and can be checked.</li>
+    <li><b>A score per topic</b> starts at 30% and moves toward each new result. Predictions and “what if” answers move it more than recall. An answer given after a hint counts for less.</li>
+    <li><b>Every attempt is kept as evidence:</b> the question, your answer, the result, and which step of Claude's work it was about. The agent sees your recent attempts, and the recap shows before and after.</li>
+    <li><b>Misconceptions stay open</b> (for example, “the token's contents are encrypted”) until you later get that topic right without a hint. The agent aims questions at them.</li>
+    <li><b>Spaced review.</b> A topic comes back after 1, 3, 7, 16 and 35 days. A right answer pushes it further out; a miss brings it back tomorrow. Due topics under 70% show up as refreshers.</li>
+    <li><b>Related work brings topics back.</b> When a new task touches something you learned, you get a one-question refresher there, or a question that connects the two (bcrypt and rate limiting, say).</li>
+    <li><b>Where it lives:</b> in the browser for the prototype. The same shape would move to Claude's memory.</li>
   </ul>
 </section>
 
 <section>
-  <div class="kicker">Human agency</div>
-  <h2>It enhances judgment instead of replacing work</h2>
+  <h2>How I got here</h2>
   <ul>
-    <li><b>Claude still does the task, fully.</b> Learning never blocks, slows or steers it.</li>
-    <li><b>You choose</b> whether to learn, what, and how deep. Everything can be dismissed, and Learn mode is one switch.</li>
-    <li><b>Understand before you review.</b> Knowing why Claude made each choice is what lets you oversee it and push back.</li>
-    <li><b>It never does the task for you.</b> It asks, shows and checks. It asks about Claude's choices rather than judging them, since it doesn't have Claude's full context.</li>
+    <li><b>The first idea everyone had was wrong.</b> Every model I brainstormed with, Claude included, first suggested pausing the agent at key decisions and letting the user choose. That makes the work only as good as the learner, and fills the agent's context with guesses. So the learner rides alongside instead of steering.</li>
+    <li><b>Spec before code.</b> A numbered log of decisions and six milestones, each tested before the next.</li>
+    <li><b>Real Claude API from the start.</b> Opus for the main agent (reasoning streamed live), Sonnet for the learning agent and grader, Haiku for the “worth learning?” check, and Opus for interactives.</li>
+    <li><b>Changed it after using it.</b> A blank chat box felt like “a second Claude”, so it became goals and next steps. That felt like homework, so now it shows before it asks, has one text box of its own, and starts by itself when Learn mode is on. Then I made it work on phones.</li>
+    <li><b>Safe for a public link.</b> Rate limits, size limits, and prompts that treat Claude's output and user text as material, not instructions.</li>
   </ul>
 </section>
 
 <section>
-  <div class="kicker">Learning principles</div>
-  <h2>What the design borrows from how people learn</h2>
+  <h2>Keeping people in charge</h2>
+  <ul>
+    <li><b>Claude still does the task, fully.</b> Learning never blocks it, slows it or changes it.</li>
+    <li><b>You choose</b> whether to learn, what, and how deep. Everything can be skipped, and Learn mode is one switch.</li>
+    <li><b>Understand before you review.</b> Knowing why Claude made each choice is what lets you check its work and push back.</li>
+    <li><b>It never does the task for you.</b> It shows, asks and checks. It asks about Claude's choices rather than judging them, because it doesn't have Claude's full context.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Learning principles</h2>
   <table>
     <tr><th>Principle</th><th>Where it shows up</th></tr>
-    <tr><td>Apprenticeship</td><td>An expert does the real task while a coach explains, asks and checks.</td></tr>
-    <tr><td>Just-in-time relevance</td><td>Topics come from the task you just asked for, so there's no need to persuade you they matter.</td></tr>
-    <tr><td>Prediction and retrieval</td><td>You predict before the code exists, then compare against what Claude wrote.</td></tr>
-    <tr><td>Active over passive</td><td>Interactives you manipulate rather than read. A “watch the agent” mind map was dropped: it feels like teaching without evidence of learning.</td></tr>
-    <tr><td>Scaffolding</td><td>Hints, never answers; an easier question or an interactive after a miss.</td></tr>
-    <tr><td>Spacing and interleaving</td><td>Refreshers at growing intervals, and when a related task comes up.</td></tr>
-    <tr><td>A model of the learner</td><td>Mastery, evidence and misconceptions decide the next move and skip what you already know.</td></tr>
+    <tr><td>Learn on the job</td><td>An expert does the real task while the learning agent explains, asks and checks.</td></tr>
+    <tr><td>Learn when it matters</td><td>Topics come from the task you just asked for, so there's no need to convince you they matter.</td></tr>
+    <tr><td>Guess, then check</td><td>You predict before the code exists, then compare with what Claude wrote.</td></tr>
+    <tr><td>Do, don't just watch</td><td>Interactives you play with instead of text you read. A live map of Claude's work was dropped: it feels like teaching without showing anyone learned.</td></tr>
+    <tr><td>Support, then step back</td><td>Hints, never answers; an easier question or an interactive after a miss.</td></tr>
+    <tr><td>Space it out and mix it up</td><td>Refreshers at growing gaps, and when a related task comes up.</td></tr>
+    <tr><td>Know the learner</td><td>Scores, evidence and misconceptions decide what comes next and skip what you already know.</td></tr>
   </table>
 </section>
 
 <section>
-  <div class="kicker">Measuring success</div>
-  <h2>Measure learning, not engagement</h2>
+  <h2>Measuring success</h2>
   <ul>
-    <li><b>North star:</b> first-try accuracy on refreshers taken days later, in a different task. That measures retention and transfer, not time spent.</li>
-    <li><b>Learning curve:</b> mastery over time per topic; misconceptions resolved.</li>
-    <li><b>Adoption:</b> offered → opened → first answer → session completed, compared across entry points (switch vs chip).</li>
-    <li><b>Guardrails:</b> no change to task completion time or satisfaction; switch-off rate; how often people type task requests into Learn mode's box.</li>
-    <li><b>Quality evals</b> for the learning agent: grounded in Claude's code, no spoilers, grader agrees with humans, shows before it tells.</li>
+    <li><b>Main measure:</b> how often people get a refresher right on the first try, days later and in a different task. It shows what stuck, not how long anyone spent.</li>
+    <li><b>Progress:</b> topic scores over time, and misconceptions cleared.</li>
+    <li><b>Adoption:</b> offered → opened → first answer → goal finished, compared for the switch and the in-chat suggestion.</li>
+    <li><b>Guardrails:</b> no change to how long tasks take or how happy people are with them; how often people switch it off; how often people type a request for Claude into Learn mode's box.</li>
+    <li><b>Checks on the learning agent:</b> it uses Claude's actual code, doesn't give away answers, grades like a human would, and shows before it tells.</li>
   </ul>
 </section>
 
 <section>
-  <div class="kicker">Scale</div>
-  <h2>Built to reach millions without a new app</h2>
+  <h2>Scaling to millions</h2>
   <ul>
-    <li><b>Distribution is built in:</b> it's a switch in Claude and Claude Code, not a destination.</li>
-    <li><b>Works in any domain:</b> topics come from the work itself, not a hand-built curriculum. The demo is code; the same loop fits writing and analysis.</li>
-    <li><b>Segments:</b> on by default for students (set by schools); off for professionals, with a light nudge budget; deeper stretch goals and review for power users.</li>
-    <li><b>Cost scales with engagement:</b> it runs only when on; cheaper models (Sonnet, Haiku) watch and decide; Opus builds interactives only when someone asks to see or try something; prompts put stable context first so it can be cached.</li>
-    <li><b>Rollout:</b> feature flag, then A/B on entry points, graduating on the north star with guardrails intact.</li>
+    <li><b>No new app to find:</b> it's a switch in Claude and Claude Code.</li>
+    <li><b>Works beyond code:</b> topics come from the work itself, not a hand-written course. The same loop fits writing and analysis.</li>
+    <li><b>Different defaults for different people:</b> on by default for students (set by schools); off for professionals, with occasional suggestions; stretch goals and review for experienced users.</li>
+    <li><b>Cost follows use:</b> it only runs when on; Sonnet and Haiku do the watching and deciding; Opus builds interactives only when someone asks to see or try something.</li>
+    <li><b>Rollout:</b> behind a flag, then compare the switch against in-chat suggestions, and keep it if the main measure improves without hurting the guardrails.</li>
   </ul>
-  <p class="note">Prototype notes: the repository and agent pacing are simulated and labelled in the app; learner memory lives in the browser. Model calls are real when an API key is set.</p>
+  <p class="note">Simulated in the prototype: the repository Claude works on, the pacing of Claude's steps, and a “+3 days” clock for trying spaced review. If API credits run out, the app falls back to a scripted version of the demo.</p>
 </section>
 
 </body>

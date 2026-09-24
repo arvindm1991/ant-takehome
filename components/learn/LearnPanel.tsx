@@ -24,7 +24,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { deriveFeed } from "@/lib/learn/useLearn";
-import { arcOf, breadcrumb, latestTrail, nextMoves, openProbe, pendingNudge, type NextMove, type Nudge } from "@/lib/learn/moves";
+import { breadcrumb, latestTrail, nextMoves, openProbe, pendingNudge, type NextMove, type Nudge } from "@/lib/learn/moves";
 import { estimateOf, normalizeTopicId, PRIOR, type Refresher } from "@/lib/memory/model";
 import { useMemory } from "@/lib/memory/store";
 import type { FeedEntry, LearnAction, LearnSession, MoveKind, Objective, ProbeMode, Verdict } from "@/lib/learn/types";
@@ -215,23 +215,15 @@ export function LearnPeek({ thread, session, onExpand, onNudge }: { thread: Thre
 /* ------------------------------------------------------------------ header */
 
 function SessionHeader({ session, feed, compact }: { session: LearnSession; feed: FeedEntry[]; compact?: boolean }) {
-  const arc = arcOf(session, feed);
   const allCrumbs = breadcrumb(feed);
   // Phone: one line. The goal is on its card in the feed; the header keeps only where you are.
+  // No move counter: the session still wraps up after its questions, but a visible count read as homework.
   const crumbs = compact ? [] : allCrumbs;
-  const current = Math.min(arc.done + 1, arc.target);
   return (
     <div className={`border-y border-lsa-border bg-lsa-surface/50 px-4 ${compact ? "py-1.5" : "border-t-0 py-2.5"}`}>
       <div className="flex items-center gap-2 text-[12px]">
         <span className={`truncate font-medium ${compact ? "text-learn" : "text-text/90"}`}>{compact ? (allCrumbs.at(-1) ?? session.objective?.label) : session.objective?.label}</span>
-        <span className="ml-auto flex shrink-0 items-center gap-1.5 text-muted" aria-label={`Move ${current} of ${arc.target}`}>
-          {session.ended ? "Done" : arc.complete ? "Wrapping up" : `Move ${current} of ${arc.target}`}
-          <span className="flex gap-1">
-            {Array.from({ length: arc.target }).map((_, i) => (
-              <span key={i} className={`h-1.5 w-4 rounded-full ${i < arc.done ? "bg-learn" : i === arc.done && !session.ended ? "bg-learn/40" : "bg-lsa-border"}`} />
-            ))}
-          </span>
-        </span>
+        {session.ended && <span className="ml-auto shrink-0 text-muted">Done</span>}
       </div>
       {crumbs.length > 0 && (
         <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[11.5px] text-learn/90" aria-label="What we've covered">

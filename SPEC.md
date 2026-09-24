@@ -68,7 +68,7 @@ A **learning sub-agent** that rides alongside Claude's main agent in regular Cla
 7. The user answers. The grader scores the answer, memory updates, and the LSA gives short feedback that **links to the MA step** where the answer is revealed (anchor ↗ scrolls and highlights that step).
 8. The learning agent **does not auto-advance**. Every turn ends with 2–3 **next-move buttons** (§9.6): after a correct answer, *Dig deeper · Try it hands-on · Zoom out*; after a miss, *Hint · See how it works (an interactive) · Show me in Claude's code*. Answers and free questions go in the panel's own text box. "Try it hands-on" can render an interactive **JWT decoder/tamper widget** built from the token format the MA actually used.
 9. **Proactive check-in:** when Claude writes the step a prediction was about (e.g. `lib/auth.ts`), a nudge appears: *"Claude just wrote `lib/auth.ts`. Want to check your prediction?"* It stays until the learner acts on it or taps *Later*.
-10. A header shows the goal, the **arc** ("Move 2 of 3") and a **breadcrumb** of concepts covered. When the arc is complete the learning agent writes a **recap**: what was covered and how mastery moved (before → after bars), with *Keep going* and *Pick another goal*. An episode is written to memory.
+10. A header shows the goal and a **breadcrumb** of concepts covered. When the arc is complete the learning agent writes a **recap**: what was covered and how mastery moved (before → after bars), with *Keep going* and *Pick another goal*. An episode is written to memory.
 
 ### J2 — Post-task: learn before you review
 1. The MA finishes (fast task, or the user ignored the live chip).
@@ -95,7 +95,7 @@ A **learning sub-agent** that rides alongside Claude's main agent in regular Cla
 │ Chats &    │  Main thread                         │  Learning panel       │
 │ tasks      │  ┌ user prompt                       │  [Session] [Inbox]    │
 │            │  │  🎓 Learn while Claude builds…    │                       │
-│            │  ├ step 1  Plan            #s1       │  Goal · Move 2 of 3   │
+│            │  ├ step 1  Plan            #s1       │  Goal · breadcrumb    │
 │            │  ├ step 2  auth.ts         #s2 ◀─────┼─ anchor highlight     │
 │            │  ├ step 3  middleware.ts   #s3       │  Question / feedback  │
 │            │  └ ⓘ Prototype note: paced to        │  Widget (iframe)      │
@@ -260,7 +260,7 @@ The `probe` rubric is written by the LSA and passed to the grader, so the answer
 | Last answer missed | Hint · See how it works (an interactive) · Show me in Claude's code |
 | After an explanation, demo or hint | Quiz me on this · Dig deeper · Zoom out |
 
-- **Arc.** A session aims for 3 answered questions (1 for a refresher). The header shows "Move k of N". When the arc is complete, code tells the LSA to wrap up (`end_session`). *Keep going* extends the arc by 2.
+- **Arc.** A session aims for 3 answered questions (1 for a refresher). The count isn't shown (a visible "Move 2 of 3" read as homework). When the arc is complete, code tells the LSA to wrap up (`end_session`). *Keep going* extends the arc by 2.
 - **Recap** shows the breadcrumb and before → after mastery for each topic touched, from the episode record.
 
 ## 10. Learner memory
