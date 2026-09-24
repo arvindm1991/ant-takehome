@@ -89,7 +89,7 @@ Narration is written to be spoken at about 140 words a minute. `[Brackets]` are 
 
 `[Tab B: the recap with before → after bars. Inbox → +3 days → a refresher card.]`
 
-> A recap shows what moved. Days later, or when related work comes up, the topic comes back as a one-question refresher. That's the third way in, and a growth loop: it brings people back, like a streak, and spaced repetition is one of the best ways to make learning stick.
+> A recap shows what moved. Days later, or when related work comes up, the topic comes back as a one-question refresher. That's the third way in, and a retention and value loop: it brings people back, like a streak, and each return is worth it, because spaced repetition is one of the best ways to make learning stick.
 
 
 ## 4. How it works · 4:40–5:40
