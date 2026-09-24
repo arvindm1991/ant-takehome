@@ -226,7 +226,32 @@ function probe(r: LearnRequest, topic: string, tag: string, x: Q): LearnAction {
 const asked = (r: LearnRequest, tag: string, topic: string) =>
   r.feed.some((e) => e.kind === "action" && e.action.kind === "probe" && e.action.id.startsWith(`mock-${tag}-${topic}-`));
 
-const usedWidget = (r: LearnRequest) => r.feed.some((e) => e.kind === "action" && e.action.kind === "demonstrate");
+const shownWidget = (r: LearnRequest, spec: string) => r.feed.some((e) => e.kind === "action" && e.action.kind === "demonstrate" && e.action.spec === spec);
+
+// Interactives first (the live prompt says the same): a visualizer to see the mechanism, a lab to poke it.
+const VISUAL: Record<string, { spec: string; caption: string; anchor: string; concept: string }> = {
+  jwt: {
+    spec: "jwt-visualizer",
+    caption: "This is the kind of token Claude's `signToken()` issues. Tap each part: the header and payload decode to plain JSON, and only the **signature** needs `JWT_SECRET`.",
+    anchor: "lib/auth.ts",
+    concept: "JWT anatomy",
+  },
+};
+
+function demo(r: LearnRequest, topic: string, spec: string, anchor: string, concept: string): LearnAction {
+  const w = MOCK_WIDGETS[spec];
+  const c = CONTENT[topic];
+  const trail = c ? { deeper: c[nextDeeper(r, topic, "")].concept, sibling: c[nextSibling(r, topic, "")].concept } : { deeper: "", sibling: "" };
+  return { kind: "demonstrate", id: pid("widget"), title: w.title, spec, topicId: topic, anchors: [find(r.trajectory, anchor)].filter(Boolean) as string[], concept, ...trail };
+}
+
+/** "See how it works": the next interactive not yet shown, captioned; plain text only when there's none left. */
+function showHow(r: LearnRequest, topic: string, c: TopicContent): LearnAction[] {
+  const v = VISUAL[topic];
+  if (v && !shownWidget(r, v.spec)) return [demo(r, topic, v.spec, v.anchor, v.concept), explain(r, topic, v.caption, v.anchor)];
+  if (MOCK_WIDGETS[topic] && c.handsOn && !shownWidget(r, topic)) return [demo(r, topic, topic, c.handsOn.anchor, c.handsOn.concept), probe(r, topic, "handson", c.handsOn)];
+  return [explain(r, topic, c.explain.text, c.explain.anchor, c.explain)];
+}
 
 function explain(r: LearnRequest, topic: string, text: string, anchor: string, trail?: { concept: string; deeper: string; sibling: string }): LearnAction {
   const c = CONTENT[topic];
@@ -234,9 +259,9 @@ function explain(r: LearnRequest, topic: string, text: string, anchor: string, t
   return { kind: "explain", text, topicId: topic, anchors: [find(r.trajectory, anchor)].filter(Boolean) as string[], ...(trail ? { concept: trail.concept } : {}), ...next };
 }
 
-function firstMove(r: LearnRequest, topic: string, c: TopicContent): LearnAction {
+function firstMove(r: LearnRequest, topic: string, c: TopicContent): LearnAction[] {
   if (topic === "codebase-orientation") {
-    return {
+    return [{
       kind: "probe",
       id: pid(`first-${topic}`),
       mode: "approach",
@@ -252,11 +277,14 @@ function firstMove(r: LearnRequest, topic: string, c: TopicContent): LearnAction
       concept: c.first.concept,
       deeper: c.first.deeper,
       sibling: c.first.sibling,
-    };
+    }];
   }
   // Before the code exists: predict. After: explain it back.
   const x = r.mainAgentStatus === "done" && c.first.mode === "predict" ? { ...c.first, mode: "explain_back" as const, q: c.first.q.replace(/^Claude is about to write/, "Look at how Claude wrote").replace(/Before it does: /, "") } : c.first;
-  return probe(r, topic, "first", x);
+  // Show first when there's something to see: open with the visualizer, then ask the prediction against it.
+  const v = VISUAL[topic];
+  if (v) return [demo(r, topic, v.spec, v.anchor, v.concept), probe(r, topic, "first", { ...x, q: `Tap through the token above: anyone can read it. ${x.q}` })];
+  return [probe(r, topic, "first", x)];
 }
 
 function onMove(r: LearnRequest, topic: string, c: TopicContent, move: MoveKind): LearnAction[] {
@@ -280,15 +308,11 @@ function onMove(r: LearnRequest, topic: string, c: TopicContent, move: MoveKind)
     case "show_code":
       return [explain(r, topic, c.showCode.text, c.showCode.anchor)];
     case "explain":
-      return [explain(r, topic, c.explain.text, c.explain.anchor, c.explain)];
+      return showHow(r, topic, c);
     case "hands_on":
     case "show":
-      if (widget && c.handsOn && !usedWidget(r)) {
-        return [
-          { kind: "demonstrate", id: pid("widget"), title: widget.title, spec: widget.spec, topicId: topic, anchors: [find(r.trajectory, c.handsOn.anchor)].filter(Boolean) as string[], concept: c.handsOn.concept, deeper: c.handsOn.deeper, sibling: c.handsOn.sibling },
-          probe(r, topic, "handson", c.handsOn),
-        ];
-      }
+      if (widget && c.handsOn && !shownWidget(r, topic)) return [demo(r, topic, topic, c.handsOn.anchor, c.handsOn.concept), probe(r, topic, "handson", c.handsOn)];
+      if (VISUAL[topic] && !shownWidget(r, VISUAL[topic].spec)) return showHow(r, topic, c);
       return move === "show" ? [explain(r, topic, c.showCode.text, c.showCode.anchor)] : [probe(r, topic, "challenge", c.challenge)];
     case "quiz": {
       const next = (["deeper", "zoom", "easier", "challenge"] as const).find((k) => !asked(r, k, topic)) ?? "challenge";
@@ -308,14 +332,14 @@ export function mockAct(r: LearnRequest): LearnAction[] {
   }
 
   if (!AUTH_RE.test(r.userPrompt) && r.sessionTrigger !== "refresher" && r.sessionTrigger !== "contextual") {
-    return [{ kind: "explain", text: "_Mock mode:_ the scripted mentor only covers the **auth page** task. Add an API key to run the real learning agent on any task.", topicId: "general", anchors: [] }];
+    return [{ kind: "explain", text: "_Mock mode:_ Learn mode's scripted agent only covers the **auth page** task. Add an API key to run the real learning agent on any task.", topicId: "general", anchors: [] }];
   }
 
   switch (e.type) {
     case "session_start":
       return [{ kind: "objectives", objectives: MOCK_OBJECTIVES }];
     case "objective_selected":
-      return [firstMove(r, topic, c)];
+      return firstMove(r, topic, c);
     case "answer_submitted":
       // Pre-emption continues while the approach cross-check waits for Claude's reads.
       return [probe(r, topic, "deeper", c.deeper)];
@@ -329,7 +353,9 @@ export function mockAct(r: LearnRequest): LearnAction[] {
       return [probe(r, topic, "step", { ...c.first, q: fq.q, rubric: fq.rubric, anchor: e.itemTitle, mode: "explain_back" })];
     }
     case "user_message":
-      return [explain(r, topic, `Good question. Here's the short version, grounded in what Claude wrote: ${c.explain.text} _(Mock mode gives a scripted answer; the live mentor answers your exact question.)_`, c.explain.anchor, c.explain)];
+      if (/^(please |can you |could you )?(add|build|change|fix|write|implement|make|create|update|remove|refactor)\b/i.test(e.text.trim()))
+        return [explain(r, topic, "That's a change to the work, so it's one for Claude: ask in the main chat and it'll do it. While it does, I can show you how the relevant part works.", c.explain.anchor)];
+      return [explain(r, topic, `Good question. Here's the short version, grounded in what Claude wrote: ${c.explain.text} _(Mock mode gives a scripted answer; the live learning agent answers your exact question.)_`, c.explain.anchor, c.explain)];
     case "main_agent_done":
       return [];
   }

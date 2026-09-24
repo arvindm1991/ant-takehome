@@ -1,4 +1,4 @@
-/** Fired whenever something asks to show a main-thread item (the mobile mentor sheet steps aside for it). */
+/** Fired whenever something asks to show a main-thread item (the mobile learning sheet steps aside for it). */
 export const THREAD_FOCUS_EVENT = "thread-focus";
 
 /** Scroll a main-thread item into view and flash it (learning-agent anchors, SPEC §6). */

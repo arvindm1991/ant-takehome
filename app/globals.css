@@ -17,10 +17,10 @@
   --code-bg: #1f1f1e;
   --danger: #f09a8a;
   --danger-soft: rgba(240, 154, 138, 0.1);
-  /* Mentor panel: its own surface so it never reads as a second Claude */
-  --mentor-bg: #1a1b26;
-  --mentor-surface: #23253a;
-  --mentor-border: #353859;
+  /* Learning panel: its own surface so it never reads as a second Claude */
+  --lsa-bg: #1a1b26;
+  --lsa-surface: #23253a;
+  --lsa-border: #353859;
   color-scheme: dark;
 }
 
@@ -41,9 +41,9 @@
   --color-raised: var(--raised);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --color-mentor: var(--mentor-bg);
-  --color-mentor-surface: var(--mentor-surface);
-  --color-mentor-border: var(--mentor-border);
+  --color-lsa: var(--lsa-bg);
+  --color-lsa-surface: var(--lsa-surface);
+  --color-lsa-border: var(--lsa-border);
   --font-serif: var(--font-newsreader);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

@@ -21,7 +21,7 @@ export const LSA_TOOLS = [
   {
     name: "demonstrate",
     description:
-      "Request an interactive widget (sliders, toggles, live output) that lets the learner manipulate the concept using the main agent's actual values. 'spec' describes what to show and which values/code to ground it in; a separate builder generates it.",
+      "Preferred teaching move. Request an interactive widget (a visualizer, decoder, tamper lab, slider, stepper: live output the learner can poke) that lets the learner manipulate the concept using the main agent's actual values. 'spec' describes what to show and which values/code to ground it in; a separate builder generates it.",
     input_schema: jsonSchema(DemonstrateInput),
   },
   { name: "end_session", description: "Wrap up with a one-line recap.", input_schema: jsonSchema(EndSessionInput) },

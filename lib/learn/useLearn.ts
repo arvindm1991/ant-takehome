@@ -358,7 +358,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
       if (!s || !thread || !probe) return;
       append(threadId, { kind: "answer", probeId, text, selected, at: Date.now() });
 
-      // The learner steers after feedback (next-move buttons); the mentor only speaks
+      // The learner steers after feedback (next-move buttons); the learning agent only speaks
       // up on its own to wrap up once the arc is complete.
       const arcComplete = () => {
         const cur = sessionsRef.current[threadId];
@@ -412,7 +412,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
     [append, run],
   );
 
-  /** A next-move button or toolbar action: the learner steers, the mentor responds. */
+  /** A next-move button or toolbar action: the learner steers, the learning agent responds. */
   const move = useCallback(
     (threadId: string, kind: MoveKind, target: string, label: string) => {
       append(threadId, { kind: "move", move: kind, label, at: Date.now() });
@@ -432,7 +432,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
       mutate(threadId, (s) => ({ ...s, actedNudges: [...s.actedNudges, nudge.key] }));
       if (!accept) return;
       append(threadId, { kind: "move", move: "quiz", label: nudge.cta, at: Date.now() });
-      focusThreadItem(nudge.itemId, { stepAside: false }); // the mentor's reply comes next; don't hide it
+      focusThreadItem(nudge.itemId, { stepAside: false }); // the learning agent's reply comes next; don't hide it
       void run(threadId, { type: "step_revealed", itemId: nudge.itemId, itemTitle: nudge.itemTitle, probeId: nudge.probeId });
     },
     [append, mutate, run],

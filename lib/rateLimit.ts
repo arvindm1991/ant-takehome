@@ -14,16 +14,16 @@ const num = (v: string | undefined, fallback: number) => {
   return v && Number.isFinite(n) && n > 0 ? n : fallback;
 };
 
-/** Per-IP requests per hour. A full learning session is ~10 learn calls and ≤ 1 widget. */
+/** Per-IP requests per hour. A full learning session is ~10 learn calls and 1–3 widgets (interactives are the preferred teaching move). */
 export function limits() {
   return {
     main: num(process.env.RATE_LIMIT_MAIN_PER_HOUR, 20),
     learn: num(process.env.RATE_LIMIT_LEARN_PER_HOUR, 150),
-    widget: num(process.env.RATE_LIMIT_WIDGET_PER_HOUR, 10),
+    widget: num(process.env.RATE_LIMIT_WIDGET_PER_HOUR, 20),
     daily: num(process.env.RATE_LIMIT_DAILY_TOTAL, 2000),
     // Expensive buckets (Opus, large outputs) get their own daily ceilings.
     mainDaily: num(process.env.RATE_LIMIT_MAIN_PER_DAY, 200),
-    widgetDaily: num(process.env.RATE_LIMIT_WIDGET_PER_DAY, 60),
+    widgetDaily: num(process.env.RATE_LIMIT_WIDGET_PER_DAY, 150),
   };
 }
 

@@ -14,5 +14,5 @@ export function useMediaQuery(query: string, serverDefault = true) {
   );
 }
 
-/** Side-by-side mentor panel from Tailwind's `lg` breakpoint; below it the mentor is a bottom sheet. */
+/** Side-by-side learning panel from Tailwind's `lg` breakpoint; below it the learning agent is a bottom sheet. */
 export const useWidePanel = () => useMediaQuery("(min-width: 1024px)");

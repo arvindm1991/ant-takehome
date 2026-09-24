@@ -1,4 +1,4 @@
-// Pure session logic for the mentor panel: next moves, arc, breadcrumb, proactive
+// Pure session logic for the learning panel: next moves, arc, breadcrumb, proactive
 // nudges. Everything here derives from the session feed + the (read-only) thread.
 import type { ThreadItem } from "@/lib/thread/types";
 import type { FeedEntry, LearnAction, LearnSession, MoveKind, Verdict } from "./types";
@@ -40,7 +40,7 @@ export function breadcrumb(feed: FeedEntry[]): string[] {
   return out.slice(-5);
 }
 
-/** Latest deeper/sibling targets offered by the mentor. */
+/** Latest deeper/sibling targets offered by the learning agent. */
 export function latestTrail(feed: FeedEntry[]): { deeper: string; sibling: string } {
   for (const a of actions(feed).reverse()) {
     const x = a.action as { deeper?: string; sibling?: string };
@@ -52,17 +52,18 @@ export function latestTrail(feed: FeedEntry[]): { deeper: string; sibling: strin
 const m = (move: MoveKind, label: string, target: string, hint: string): NextMove => ({ move, label, target, hint });
 
 /**
- * 2–3 next moves after every mentor turn, so the learner never faces an empty box.
- * Got it right → dig deeper / hands-on / zoom out. Missed or stuck → hint / show me in
- * Claude's code / easier question.
+ * 2–3 next moves after every learning-agent turn, so the learner never faces an empty box.
+ * Got it right → dig deeper / hands-on / zoom out. Missed → hint / see how it works
+ * (an interactive) / show me in Claude's code. Stuck on an open question → hint / easier / code.
  */
 export function nextMoves(session: LearnSession, feed: FeedEntry[]): NextMove[] {
   if (!session.objective || session.ended || session.busy) return [];
   const trail = latestTrail(feed);
   const deeper = m("dig_deeper", "Dig deeper", trail.deeper, "One level further into the mechanism");
   const zoom = m("zoom_out", "Zoom out", trail.sibling, "A sibling concept");
-  const usedWidget = actions(feed).some((a) => a.action.kind === "demonstrate");
-  const handsOn = usedWidget ? m("challenge", "Challenge me", "", "A harder what-if") : m("hands_on", "Try it hands-on", "", "Interactive demo of this idea");
+  // Interactives are the preferred way in; after a couple, offer a stretch question instead.
+  const widgets = actions(feed).filter((a) => a.action.kind === "demonstrate").length;
+  const handsOn = widgets >= 2 ? m("challenge", "Challenge me", "", "A harder what-if") : m("hands_on", "Try it hands-on", "", "Interactive demo of this idea");
 
   const open = openProbe(feed);
   if (open) {
@@ -74,7 +75,7 @@ export function nextMoves(session: LearnSession, feed: FeedEntry[]): NextMove[] 
   const last = [...feed].reverse().find((e) => e.kind === "action" || e.kind === "feedback" || e.kind === "reveal");
   if (!last) return [];
   if (last.kind === "feedback" || last.kind === "reveal") {
-    return (last.verdict as Verdict) === "correct" ? [deeper, handsOn, zoom] : [m("hint", "Hint", "", "Try again with a nudge"), m("show_code", "Show me in Claude's code", "", "Where the answer lives"), m("easier", "Easier question", "", "Same idea, simpler")];
+    return (last.verdict as Verdict) === "correct" ? [deeper, handsOn, zoom] : [m("hint", "Hint", "", "Try again with a nudge"), m("explain", "See how it works", "", "An interactive, not a lecture"), m("show_code", "Show me in Claude's code", "", "Where the answer lives")];
   }
   if (last.kind === "action" && (last.action.kind === "explain" || last.action.kind === "demonstrate" || last.action.kind === "hint")) {
     return [m("quiz", "Quiz me on this", "", "Check it stuck"), deeper, zoom];

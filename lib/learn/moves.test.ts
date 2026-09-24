@@ -47,9 +47,9 @@ describe("next moves (never an empty box)", () => {
     expect(moves[0].target).toBe("d-p1");
     expect(moves[2].target).toBe("s-p1");
   });
-  it("after a miss: hint, show me in Claude's code, easier question", () => {
+  it("after a miss: hint, see how it works (interactive), show me in Claude's code", () => {
     const f = [probe("p1"), answer("p1"), graded("p1", "incorrect")];
-    expect(nextMoves(session(f), f).map((m) => m.move)).toEqual(["hint", "show_code", "easier"]);
+    expect(nextMoves(session(f), f).map((m) => m.move)).toEqual(["hint", "explain", "show_code"]);
   });
   it("while a question is open: stuck options, without a second hint", () => {
     expect(nextMoves(session([probe("p1")]), [probe("p1")]).map((m) => m.move)).toEqual(["hint", "easier", "show_code"]);

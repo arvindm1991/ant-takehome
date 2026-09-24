@@ -167,7 +167,7 @@ Output ONE complete, self-contained HTML document and nothing else: inline <styl
 export async function buildWidget(req: WidgetRequest): Promise<{ html: string; generated: boolean }> {
   if (isMock()) {
     await new Promise((r) => setTimeout(r, 1200));
-    const w = MOCK_WIDGETS[req.topicId];
+    const w = [req.spec, req.topicId].map((k) => (Object.hasOwn(MOCK_WIDGETS, k) ? MOCK_WIDGETS[k] : undefined)).find(Boolean);
     if (!w) throw new UserFacingError("Mock mode only has pre-built widgets for the auth demo topics.");
     return { html: w.html, generated: false };
   }

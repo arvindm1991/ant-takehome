@@ -34,7 +34,7 @@ async function journey(name, fn) {
   }
 }
 
-const moves = async (p) => (await p.locator('[aria-label="Where next"] button').allInnerTexts()).map((t) => t.split("\n")[0]);
+const moves = async (p) => p.locator('[aria-label="Where next"] [data-move-label]').allInnerTexts();
 const expectMoves = async (p, want) => {
   await p.locator('[aria-label="Where next"] button').first().waitFor({ timeout: 8000 });
   const got = await moves(p);
@@ -43,7 +43,7 @@ const expectMoves = async (p, want) => {
 const clickMove = (p, label) => p.locator('[aria-label="Where next"] button', { hasText: label }).click();
 const answerWith = async (p, text) => {
   await p.getByLabel("Your answer").last().fill(text, { timeout: 10000 });
-  await p.getByText("Check my answer").click();
+  await p.getByRole("button", { name: "Check my answer" }).click();
 };
 
 async function startLearning(p, goal) {
@@ -67,28 +67,29 @@ await journey("J1a orient goal: goal cards → approach MCQ → pre-emptive pred
   await expectMoves(p, ["Dig deeper", "Try it hands-on", "Zoom out"]);
 });
 
-await journey("J1b JWT goal: prediction → proactive check-in → hands-on lab → miss → hint → retry → dig deeper → recap", async () => {
+await journey("J1b JWT goal: visualizer + prediction → hands-on lab → miss → hint → retry → proactive check-in → dig deeper → recap", async () => {
   const p = await page();
   await startLearning(p, "Explain what a server must check before it trusts a JWT");
+  await p.frameLocator('iframe[title="JWT visualizer"]').getByText("Signature", { exact: true }).click({ timeout: 10000 }); // interactive first
   await answerWith(p, "Verify the signature with the secret, check the expiry exp, and pin the algorithm.");
   await p.getByText("Nailed it", { exact: true }).first().waitFor({ timeout: 8000 });
   await expectMoves(p, ["Dig deeper", "Try it hands-on", "Zoom out"]);
-  await p.getByText("Check my prediction").click({ timeout: 40000 }); // proactive nudge when Claude writes lib/auth.ts
-  await p.getByText(/Which of the three did your prediction cover/).waitFor({ timeout: 8000 });
-  await expectMoves(p, ["Quiz me on this", "Dig deeper", "Zoom out"]);
-  await p.getByRole("button", { name: "Show me" }).click(); // toolbar: hands-on lab + question
-  const lab = p.frameLocator("iframe");
+  await clickMove(p, "Try it hands-on");
+  const lab = p.frameLocator('iframe[title="JWT tamper lab"]');
   await lab.locator("#verdict", { hasText: "Accepted" }).waitFor({ timeout: 10000 });
   await lab.getByText("Attacker edits payload").click();
   await lab.locator("#role").selectOption("admin");
   await lab.locator("#verdict", { hasText: "Rejected" }).waitFor({ timeout: 5000 });
   await answerWith(p, "No idea.");
   await p.getByText("Not quite", { exact: true }).waitFor({ timeout: 8000 });
-  await expectMoves(p, ["Hint", "Show me in Claude's code", "Easier question"]);
+  await expectMoves(p, ["Hint", "See how it works", "Show me in Claude's code"]);
   await clickMove(p, "Hint");
   await p.getByText("Hint", { exact: true }).first().waitFor({ timeout: 8000 });
   await answerWith(p, "Editing the payload breaks the HMAC signature made with the secret; alg none is rejected because the algorithm is pinned to HS256.");
   await p.getByText("Nailed it", { exact: true }).last().waitFor({ timeout: 8000 });
+  await p.getByText("Check my prediction").click({ timeout: 40000 }); // proactive check-in once Claude writes lib/auth.ts
+  await p.getByText(/Which of the three did your prediction cover/).waitFor({ timeout: 8000 });
+  await expectMoves(p, ["Quiz me on this", "Dig deeper", "Zoom out"]);
   await clickMove(p, "Dig deeper");
   await answerWith(p, "The HMAC signature needs the secret key; without JWT_SECRET they can't produce a valid signature over the edited payload.");
   await p.getByText("Session recap").waitFor({ timeout: 10000 });
@@ -113,17 +114,20 @@ await journey("J4 quick question: instant answer, no learn chip", async () => {
   if ((await p.getByText(/Learn while Claude builds|understand it before you review/).count()) !== 0) throw new Error("chip shown for a trivial ask");
 });
 
-await journey("Toggle first → auto-start with goal cards; contract toolbar + secondary Ask", async () => {
+await journey("Toggle first → learn mode starts on its own; one text box answers, then asks; task requests redirect", async () => {
   const p = await page();
   await p.getByRole("switch").click();
-  await p.getByText("I never do the task for you").waitFor();
+  await p.getByText("Learn mode is on.").waitFor();
   await p.getByRole("button", { name: /Primary demo/ }).click();
-  await p.getByText("Explain what a server must check before it trusts a JWT").click({ timeout: 8000 });
-  for (const t of ["Quiz me", "Explain", "Show me", "Challenge me"]) await p.getByRole("button", { name: t, exact: true }).waitFor();
-  await p.getByRole("button", { name: "Ask" }).click();
-  await p.getByLabel("Ask about what Claude just did").fill("why pin the algorithm?");
-  await p.getByRole("button", { name: "Ask the mentor" }).click();
+  await p.getByText("Explain what a server must check before it trusts a JWT").click({ timeout: 8000 }); // no chip click needed
+  await answerWith(p, "Verify the signature with the secret, check the expiry exp, and pin the algorithm.");
+  await p.getByText("Nailed it", { exact: true }).first().waitFor({ timeout: 8000 });
+  await p.getByLabel("Ask about what Claude just did").fill("why pin the algorithm?"); // no open question → the box asks
+  await p.getByRole("button", { name: "Ask", exact: true }).click();
   await p.getByText("You asked", { exact: true }).waitFor({ timeout: 8000 });
+  await p.getByLabel("Ask about what Claude just did").fill("add a logout button");
+  await p.getByRole("button", { name: "Ask", exact: true }).click();
+  await p.getByText(/one for Claude: ask in the main chat/).waitFor({ timeout: 8000 });
 });
 
 await journey("J3 refreshers: persist → +3 days → Inbox refresher → interleave → recurrence", async () => {
@@ -160,13 +164,13 @@ await journey("Phone: drawer → chip → goal sheet → answer → peek bar →
   await p.getByText("Explain what a server must check before it trusts a JWT").click();
   await answerWith(p, "Verify the signature with the secret, check the expiry exp, and pin the algorithm.");
   await p.getByText("Nailed it", { exact: true }).first().waitFor({ timeout: 8000 });
-  await p.getByLabel("Minimize mentor").click();
-  await p.getByLabel("Open mentor").waitFor();
-  await p.getByLabel("Open mentor").click();
+  await p.getByLabel("Minimize learn mode").click();
+  await p.getByLabel("Open learn mode").waitFor();
+  await p.getByLabel("Open learn mode").click();
   await p.getByText("Check my prediction").click({ timeout: 40000 });
   await p.getByText(/Which of the three did your prediction cover/).waitFor({ timeout: 8000 }); // reply stays in view
-  await p.locator('aside[aria-label="Mentor"] button', { hasText: "lib/auth.ts ↗" }).first().click();
-  await p.getByLabel("Open mentor").waitFor({ timeout: 3000 }); // sheet stepped aside for the code
+  await p.locator('aside[aria-label="Learn mode"] button', { hasText: "lib/auth.ts ↗" }).first().click();
+  await p.getByLabel("Open learn mode").waitFor({ timeout: 3000 }); // sheet stepped aside for the code
   const overflow = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   if (overflow > 0) throw new Error(`page scrolls sideways by ${overflow}px`);
 });

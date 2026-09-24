@@ -1,8 +1,9 @@
 // Shared look for demo widgets. Generated widgets are asked to follow the same palette.
 export const WIDGET_PALETTE = {
-  bg: "#262624",
-  panel: "#1f1f1e",
-  border: "#3a3936",
+  // Learn mode's own surfaces, so widgets read as part of the learning panel, not as Claude output.
+  bg: "#23253a",
+  panel: "#1a1b26",
+  border: "#353859",
   text: "#ecebe6",
   muted: "#9c9a92",
   accent: "#9aa1fb",

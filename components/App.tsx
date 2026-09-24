@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Composer, SuggestionList } from "@/components/Composer";
-import { LearnPanel, MentorPeek } from "@/components/learn/LearnPanel";
+import { LearnPanel, LearnPeek } from "@/components/learn/LearnPanel";
 import { LiveLearnChip, PostTaskLearnChip, RefresherChip } from "@/components/learn/LearnChips";
 import type { PanelTab } from "@/components/learn/LearnPanel";
 import { Sidebar } from "@/components/Sidebar";
@@ -33,13 +33,13 @@ export function App() {
   });
 
   const [tab, setTab] = useState<PanelTab>("session");
-  // Phones and small tablets: chats live in a drawer, the mentor in a bottom sheet that can shrink to a peek bar.
+  // Phones and small tablets: chats live in a drawer, the learning agent in a bottom sheet that can shrink to a peek bar.
   const wide = useWidePanel();
   const [navOpen, setNavOpen] = useState(false);
   const [sheetFull, setSheetFull] = useState(true);
   const openSheet = () => setSheetFull(true);
   useEffect(() => {
-    // When the mentor points at Claude's code, the sheet steps aside so the step is visible.
+    // When the learning agent points at Claude's code, the sheet steps aside so the step is visible.
     const onFocus = () => setSheetFull(false);
     window.addEventListener(THREAD_FOCUS_EVENT, onFocus);
     return () => window.removeEventListener(THREAD_FOCUS_EVENT, onFocus);
@@ -72,12 +72,24 @@ export function App() {
     return { messageId: turn.messageId, trigger: turn.status === "done" ? ("post_task" as const) : ("live" as const) };
   })();
 
+  // Learn mode on ⇒ the learning agent is on: it starts on each new learnable task in view without waiting
+  // for a click, and follows the conversation to the newest task. An active refresher is left to finish.
+  const followsTask = !session || (session.messageId !== canStart?.messageId && (session.ended || session.trigger === "live" || session.trigger === "post_task"));
+  const autoStart = learn.panelOpen && canStart && followsTask ? canStart : null;
+  const autoKey = autoStart ? `${active.id}:${autoStart.messageId}` : null;
+  const autoStarted = useRef<string | null>(null);
+  useEffect(() => {
+    if (!autoStart || !autoKey || autoStarted.current === autoKey) return;
+    autoStarted.current = autoKey;
+    learn.start(active.id, autoStart.messageId, autoStart.trigger);
+  }, [autoKey, autoStart, active.id, learn]);
+
   const toggleLearn = () => {
     if (learn.panelOpen) return learn.setPanelOpen(false);
     learn.setPanelOpen(true);
     setTab("session");
     openSheet();
-    if (canStart) learn.start(active.id, canStart.messageId, canStart.trigger);
+    if (canStart && followsTask) learn.start(active.id, canStart.messageId, canStart.trigger);
   };
 
   const slots: ThreadSlots = {
@@ -128,7 +140,7 @@ export function App() {
   const peek =
     !wide && learn.panelOpen && !sheetFull ? (
       <div className="mb-2">
-        <MentorPeek thread={active} session={session} onExpand={openSheet} onNudge={(n, accept) => learn.actOnNudge(active.id, n, accept)} />
+        <LearnPeek thread={active} session={session} onExpand={openSheet} onNudge={(n, accept) => learn.actOnNudge(active.id, n, accept)} />
       </div>
     ) : null;
 
@@ -216,10 +228,6 @@ export function App() {
         canStart={canStart}
         error={learn.error}
         onClose={() => learn.setPanelOpen(false)}
-        onStart={(m, t) => {
-          setTab("session");
-          learn.start(active.id, m, t);
-        }}
         onObjective={(o) => learn.selectObjective(active.id, o)}
         onAnswer={(p, text, sel) => learn.answer(active.id, p, text, sel)}
         onAsk={(text) => learn.ask(active.id, text)}

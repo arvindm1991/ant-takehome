@@ -27,7 +27,7 @@ export function Widget({ state, title, onEngaged, onRetry }: { state: WidgetStat
 
   if (!state || state.status === "building") {
     return (
-      <div className="flex h-28 items-center justify-center gap-2 rounded-lg border border-dashed border-border text-[13px] text-muted">
+      <div className="flex h-28 items-center justify-center gap-2 rounded-lg border border-dashed border-lsa-border text-[13px] text-muted">
         <Loader2 size={14} className="animate-spin" /> <span className="shimmer">Building an interactive demo from Claude&apos;s code…</span>
       </div>
     );
@@ -50,7 +50,7 @@ export function Widget({ state, title, onEngaged, onRetry }: { state: WidgetStat
         sandbox="allow-scripts"
         srcDoc={srcDoc}
         style={{ height }}
-        className="w-full rounded-lg border border-border bg-surface"
+        className="w-full rounded-lg border border-lsa-border bg-lsa-surface"
       />
       <div className="mt-1 text-[11px] text-muted">
         {state.generated ? "Generated live by Claude for this session · sandboxed" : "Pre-built demo widget (mock mode) · live mode generates this with Opus"}

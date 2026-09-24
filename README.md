@@ -2,10 +2,10 @@
 
 Education Labs take-home (Option B: *learning through collaboration with Claude*).
 
-Learn Mode puts a **learning sub-agent** inside everyday Claude. While Claude's main agent does the work at full quality, the learning agent watches it (read-only) and turns it into short, grounded learning moments. It appears as a **Mentor** panel that asks, checks and shows, and never does the task. It opens with goal cards instead of a blank box, and every turn ends with next-move buttons (*Dig deeper · Try it hands-on · Zoom out*, or *Hint · Show me in Claude's code · Easier question* after a miss):
+Learn Mode puts a **learning sub-agent** inside everyday Claude. While Claude's main agent does the work at full quality, the learning agent watches it (read-only) and turns it into short, grounded learning moments. Turn on **Learn mode** and it starts teaching from whatever Claude is working on. It never does the task. It opens with goal cards instead of a blank box, **shows before it asks** (interactive widgets built from Claude's code, like a visualizer for the JWT Claude's login issues), and has one text box of its own for answers and questions, with next moves as chips above it (*Dig deeper · Try it hands-on · Zoom out*, or *Hint · See how it works · Show me in Claude's code* after a miss):
+- interactive widgets that mirror Claude's code: see the mechanism, then poke it
 - an approach question while Claude is still orienting ("which files would you open first?"), checked against the files Claude actually reads
 - predictions about the step Claude is about to write, graded against the code it actually writes
-- interactive widgets that mirror Claude's code
 - a proactive check-in when Claude writes the step you predicted, and a recap of how your mastery moved
 - hints, explanations and what-ifs that adapt to how you're doing
 - a learner memory with mastery, evidence and misconceptions

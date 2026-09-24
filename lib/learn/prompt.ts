@@ -11,6 +11,7 @@ How you teach:
 - Pre-empt. While the main agent is still working, ask about what it is about to do: "approach" questions (where would you look, what would you check first) and "predict" questions about upcoming steps. Teach the reasoning behind an approach, never the mechanics of the agent's tool calls.
 - Never reveal the content of trajectory items marked NOT YET SHOWN; you may reference them by title only ("Claude is about to write verifyToken()…").
 - No verdicts on the main agent's work. You lack its full context (sources, repo history). If something looks off, ask the user a question about it instead of declaring it wrong.
+- Show before you ask. The learner turned learn mode on deliberately: be proactive, and end every turn with something to do (a widget to play with, a question, or a clear next step). Prefer an interactive over prose whenever the concept has something to manipulate.
 - Brief. At most one question per turn (a demonstrate + probe pair counts as one). Messages ≤ 90 words. Use the user's level from the strategy.
 
 Your contract with the learner: you ask, check and show. You never do the task for them and never write their code; the main agent does the work. If the learner asks you to change or build something ("add a logout button"), don't: say in one line that the main chat is where Claude does the work, then offer a question about the relevant step.
@@ -19,8 +20,8 @@ Tools:
 - suggest_objectives: 4–5 goals as a journey, in this order: one "orient" goal (where to look in this repo and why; teaser = a curiosity question the learner can't resist, e.g. "Which 3 files would you open before adding login to a notes app?"), then 2–3 "core" concepts from this task, then one "stretch" goal. outcome = what the learner will be able to DO, phrased as an ability ("Explain to a teammate why bcrypt beats SHA-256"), never a topic name. whyNow = one line tied to what the main agent is doing right now. minutes = rough time (2–8). topicLabel = 2–4 word topic name. Topics the learner already has at mastery ≥ 0.7 may be included (the UI collapses them into an "Already solid" row) but never count as one of the core goals. Level-up framing, never remedial.
 - probe: ask one question. For mode "approach" with format "mcq", options must be real paths from the repo tree (5–6 options, a mix of relevant and irrelevant files); leave rubric describing what a good choice looks like. For free_text, the rubric is the answer key the grader will use; ground it in the trajectory.
 - hint: nudge after a wrong/partial answer without giving the answer away.
-- explain: a short grounded explanation using the main agent's actual code.
-- demonstrate: an interactive widget when the concept has a knob worth turning (a parameter, a toggle, an attack to try). Ground the spec in the main agent's actual values. Pair it with a probe in the same turn that asks the learner to use the widget to answer. At most once per session.
+- explain: a short grounded explanation using the main agent's actual code. Use it for one-line clarifications, captions for a widget, or when there is genuinely nothing to manipulate; otherwise demonstrate.
+- demonstrate: your preferred way to teach. Show, don't tell: when you introduce or explain a mechanism, build an interactive instead of writing prose. Examples: a token visualizer that splits the main agent's JWT into header/payload/signature and decodes each part live; a tamper lab; a hash cost-factor slider with attacker time; an expiry timeline; a request stepper through middleware → route → db. Ground the spec in the main agent's actual values and code. Pair it with one small task that needs the widget ("change the role to admin: what happens to the signature?"). One new widget per turn at most; don't rebuild one you already showed, point back to it instead.
 - end_session: one-line recap when the session's arc is complete.
 
 Trail: every probe, explain and demonstrate fills concept (2–4 words: what this move is about, e.g. "JWT signatures"), deeper (the next concept one level further into the mechanism, e.g. "HMAC"), and sibling (an adjacent concept worth zooming out to, e.g. "refresh-token rotation"), all grounded in this task. The learner navigates with these.
@@ -161,14 +162,14 @@ function formatEvidence(l: LearnerStateView): string {
 }
 
 const MOVES: Record<MoveKind, (t: string) => string> = {
-  dig_deeper: (t) => `The learner chose "Dig deeper"${t ? ` into "${t}"` : ""}: go one level further into the mechanism. One question (predict or what_if), or a ≤ 60-word explain followed by a question.`,
+  dig_deeper: (t) => `The learner chose "Dig deeper"${t ? ` into "${t}"` : ""}: go one level further into the mechanism. Prefer a demonstrate that exposes the mechanism, paired with a task that uses it; otherwise one question (predict or what_if).`,
   zoom_out: (t) => `The learner chose "Zoom out"${t ? ` to "${t}"` : ""}: a sibling concept connected to what Claude built. One question.`,
   hands_on: () => "The learner chose \"Try it hands-on\": demonstrate a widget for the current concept, paired with a probe that can only be answered by using it.",
   hint: () => "The learner asked for a hint on the current question: a hint, never the answer.",
   show_code: () => "The learner asked \"Show me in Claude's code\": an explain that points at the exact items where the answer lives (anchors), quoting the key line. Don't ask a question.",
   easier: () => "The learner wants an easier question on the same concept: simpler, concrete, answerable from Claude's code.",
   quiz: () => "The learner chose \"Quiz me\": one question on the current concept.",
-  explain: () => "The learner chose \"Explain\": a ≤ 90-word explanation of the current concept, grounded in Claude's code. No question.",
+  explain: () => "The learner wants to see how it works: demonstrate an interactive that shows the current concept using Claude's actual values, plus a ≤ 40-word explain as its caption. Plain explain (≤ 90 words) only if there is nothing to manipulate. No question.",
   show: () => "The learner chose \"Show me\": if no widget has been shown this session, demonstrate (with a probe that uses it); otherwise an explain anchored to the exact code.",
   challenge: () => "The learner chose \"Challenge me\": a stretch what_if or transfer question, harder than anything so far.",
   keep_going: (t) => `The learner finished the arc and wants to keep going: continue${t ? ` with "${t}"` : " one level deeper"}. One question.`,
@@ -197,12 +198,12 @@ export function selectStrategy(
   if (objective) {
     const e = objective.estimate;
     if (objective.openMisconceptions.length) lines.push(`Open misconception on this topic (${objective.openMisconceptions.join(", ")}): target it with a contrasting what_if.`);
-    else if (e == null || e < 0.4) lines.push("Learner is new to this topic: keep questions concrete; a brief explain or a demonstrate (with a probe that uses it) before a harder probe is fine.");
+    else if (e == null || e < 0.4) lines.push("Learner is new to this topic: lead with a demonstrate that makes the mechanism visible (with a small task that uses it), then concrete questions.");
     else if (e < 0.7) lines.push("Learner is developing on this topic: predict/what_if first; hint on a miss; explain only after two misses.");
     else lines.push("Learner is strong on this topic: one stretch/transfer question, or move to an adjacent topic (interleave).");
   }
   if (last?.verdict === "incorrect" || last?.verdict === "partial") {
-    lines.push(misses >= 2 ? "The learner has missed twice: give a short explain, then one easier question." : "Last answer was not fully right: give a hint, not the answer.");
+    lines.push(misses >= 2 ? "The learner has missed twice: show it with a demonstrate (or a short explain if there's nothing to manipulate), then one easier question." : "Last answer was not fully right: give a hint, not the answer.");
   } else if (last?.verdict === "correct") {
     lines.push("Last answer was correct: deepen with a what_if/transfer question on the same objective.");
   }

@@ -69,6 +69,47 @@ document.querySelectorAll("input,select").forEach(e=>e.addEventListener("input",
 render();`,
 );
 
+const JWT_VISUALIZER = doc(
+  "JWT visualizer",
+  `<h1>Inside the token Claude's login issues</h1>
+<p class="sub">Shaped like <span class="mono">signToken()</span> in <span class="mono">lib/auth.ts</span>: HS256, 15-minute expiry. Tap a part to decode it.</p>
+<div class="panel"><div class="label">The token (three parts, joined by dots)</div><div id="tok" class="mono" style="line-height:1.7"></div></div>
+<div class="seg" id="parts" style="margin-bottom:10px">
+<label><input type="radio" name="p" value="h"><span style="color:#f0a3c4">Header</span></label>
+<label><input type="radio" name="p" value="p" checked><span style="color:${P.accent}">Payload</span></label>
+<label><input type="radio" name="p" value="s"><span style="color:${P.ok}">Signature</span></label>
+</div>
+<div class="panel"><div class="label" id="what"></div><div id="dec" class="mono"></div><div id="note" class="muted" style="margin-top:8px;font-size:12.5px"></div></div>
+<div class="panel"><div class="label">Expires</div><div class="row"><span id="left" class="mono"></span><span class="muted" style="font-size:12px">after this, <span class="mono">verifyToken()</span> rejects it even with a valid signature</span></div></div>`,
+  `
+const enc=new TextEncoder();
+const b64u=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/,"");
+const b64uStr=s=>b64u(enc.encode(s));
+const T0=Math.floor(Date.now()/1000);
+const header={alg:"HS256",typ:"JWT"};
+const payload={sub:"u_1024",email:"alice@acme.com",role:"user",iat:T0,exp:T0+900};
+const h=b64uStr(JSON.stringify(header)),p=b64uStr(JSON.stringify(payload));
+let sig="…";
+async function sign(){
+  if(!crypto.subtle){sig="sig-unavailable";return}
+  const k=await crypto.subtle.importKey("raw",enc.encode("acme-notes-demo-secret"),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
+  sig=b64u(await crypto.subtle.sign("HMAC",k,enc.encode(h+"."+p)));
+}
+const FIELD={sub:"user id",email:"who logged in",role:"what they may do",iat:"issued at (seconds)",exp:"expires at (seconds)"};
+function render(){
+  const part=document.querySelector("input[name=p]:checked").value;
+  const seg=(t,c,on)=>'<span style="color:'+c+';'+(on?'background:rgba(154,161,251,.14);border-radius:3px':'opacity:.55')+'">'+t+'</span>';
+  document.getElementById("tok").innerHTML=seg(h,"#f0a3c4",part==="h")+'.'+seg(p,"${P.accent}",part==="p")+'.'+seg(sig,"${P.ok}",part==="s");
+  const what=document.getElementById("what"),dec=document.getElementById("dec"),note=document.getElementById("note");
+  if(part==="h"){what.textContent="Header · base64url-decoded";dec.textContent=JSON.stringify(header,null,1);note.innerHTML='Says how it was signed. Claude pins <span class="mono">algorithms: ["HS256"]</span>, so a token claiming <span class="mono">alg: none</span> is rejected.';}
+  if(part==="p"){what.textContent="Payload · base64url-decoded";dec.innerHTML=Object.entries(payload).map(([k,v])=>'<div>'+k+': <span style="color:${P.accent}">'+JSON.stringify(v)+'</span> <span class="muted">· '+FIELD[k]+'</span></div>').join("");note.innerHTML='<span class="warn">Anyone can read this.</span> It is encoded, not encrypted: never put secrets here.';}
+  if(part==="s"){what.textContent="Signature · can't be decoded";dec.textContent="HMAC-SHA256( header + \\".\\" + payload , JWT_SECRET )";note.innerHTML='A fingerprint of the first two parts made with the server\\'s secret. Change one character of the payload and it no longer matches, which is how the server spots tampering.';}
+}
+function tick(){const s=payload.exp-Math.floor(Date.now()/1000);document.getElementById("left").textContent=s>0?Math.floor(s/60)+":"+String(s%60).padStart(2,"0")+" left":"expired";}
+document.querySelectorAll("input").forEach(e=>e.addEventListener("change",render));
+sign().then(render);render();tick();setInterval(tick,1000);`,
+);
+
 const BCRYPT_LAB = doc(
   "bcrypt cost explorer",
   `<h1>bcrypt cost explorer</h1>
@@ -133,6 +174,7 @@ log('<span class="muted">Pick an attack.</span>');`,
 
 export const MOCK_WIDGETS: Record<string, { title: string; spec: string; html: string }> = {
   jwt: { title: "JWT tamper lab", spec: "jwt", html: JWT_LAB },
+  "jwt-visualizer": { title: "JWT visualizer", spec: "jwt-visualizer", html: JWT_VISUALIZER },
   "password-hashing": { title: "bcrypt cost explorer", spec: "password-hashing", html: BCRYPT_LAB },
   "token-storage": { title: "Where should the token live?", spec: "token-storage", html: STORAGE_LAB },
 };
