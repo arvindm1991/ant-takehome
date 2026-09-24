@@ -432,7 +432,7 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
       mutate(threadId, (s) => ({ ...s, actedNudges: [...s.actedNudges, nudge.key] }));
       if (!accept) return;
       append(threadId, { kind: "move", move: "quiz", label: nudge.cta, at: Date.now() });
-      focusThreadItem(nudge.itemId);
+      focusThreadItem(nudge.itemId, { stepAside: false }); // the mentor's reply comes next; don't hide it
       void run(threadId, { type: "step_revealed", itemId: nudge.itemId, itemTitle: nudge.itemTitle, probeId: nudge.probeId });
     },
     [append, mutate, run],

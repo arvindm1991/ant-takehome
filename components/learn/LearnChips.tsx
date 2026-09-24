@@ -7,9 +7,9 @@ export function LiveLearnChip({ topics, onClick }: { topics: Topic[]; onClick: (
   return (
     <button
       onClick={onClick}
-      className="appear ml-auto flex max-w-[85%] items-center gap-2 rounded-full border border-learn/40 bg-learn-soft px-3.5 py-1.5 text-[13.5px] text-learn hover:bg-learn/20"
+      className="appear ml-auto flex max-w-[85%] items-center gap-2 rounded-2xl border text-left sm:rounded-full border-learn/40 bg-learn-soft px-3.5 py-1.5 text-[13.5px] text-learn hover:bg-learn/20"
     >
-      <GraduationCap size={15} />
+      <GraduationCap size={15} className="shrink-0" />
       <span>
         Learn while Claude builds this
         {topics.length > 0 && <span className="text-learn/75"> · {topics.map((t) => t.label).join(", ")}</span>}
@@ -24,7 +24,7 @@ export function PostTaskLearnChip({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       className="appear flex w-full items-center gap-3 rounded-xl border border-learn/40 bg-learn-soft px-4 py-3 text-left text-learn hover:bg-learn/20"
     >
-      <GraduationCap size={18} />
+      <GraduationCap size={18} className="shrink-0" />
       <span className="text-[14px]">
         <span className="font-medium">Claude built this. Want to understand it before you review it?</span>
         <span className="text-learn/75"> About 3 minutes.</span>
@@ -48,9 +48,9 @@ export function RefresherChip({
   onDismiss: () => void;
 }) {
   return (
-    <div className="appear ml-auto flex max-w-[85%] items-center gap-1 rounded-full border border-learn/40 bg-learn-soft pl-3.5 pr-1.5 text-[13.5px] text-learn">
+    <div className="appear ml-auto flex max-w-[90%] items-center gap-1 rounded-2xl border sm:rounded-full border-learn/40 bg-learn-soft pl-3.5 pr-1.5 text-[13.5px] text-learn">
       <button onClick={onAccept} className="flex items-center gap-2 py-1.5 text-left hover:underline">
-        <Repeat2 size={15} />
+        <Repeat2 size={15} className="shrink-0" />
         <span>
           {interleave ? `This builds on ${label}` : `You practised ${label}`}
           <span className="text-learn/75">

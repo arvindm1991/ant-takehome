@@ -10,17 +10,18 @@ export function ModeBadge({ status }: { status: DeployStatus | null }) {
 
   return (
     <span className="relative">
-      <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-2">
+      <button onClick={() => setOpen((o) => !o)} className="flex min-w-0 items-center gap-2">
         <span className="rounded-full border border-note/40 px-2 py-0.5 text-[11px] font-medium tracking-wide text-note">PROTOTYPE</span>
         {status && (
           <span className={`flex items-center gap-1.5 text-[12px] ${live ? "text-emerald-300/90" : "text-muted"}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${live ? "bg-emerald-400" : partial ? "bg-note" : "bg-muted"}`} />
-            {live ? "Live · Claude API" : partial ? "Partly live" : "Mock · scripted responses"}
+            <span className="hidden min-[360px]:inline sm:hidden">{live ? "Live" : partial ? "Partly live" : "Mock"}</span>
+            <span className="hidden sm:inline">{live ? "Live · Claude API" : partial ? "Partly live" : "Mock · scripted responses"}</span>
           </span>
         )}
       </button>
       {open && status && (
-        <div className="absolute left-0 top-full z-30 mt-2 w-[440px] rounded-xl border border-border bg-surface p-4 text-[13px] leading-relaxed shadow-2xl">
+        <div className="absolute left-0 top-full z-30 mt-2 w-[min(440px,calc(100vw-24px))] max-h-[75dvh] overflow-y-auto rounded-xl border border-border bg-surface p-4 text-[13px] leading-relaxed shadow-2xl">
           <div className="mb-2 font-medium">What&apos;s real in this prototype</div>
           <Row label="Main agent" value={status.mainAgent.live ? `Live · ${status.mainAgent.model} (reasoning streamed)` : "Scripted mock (no API key)"} live={status.mainAgent.live} />
           <Row label="Learning agent" value={status.learningAgent.live ? `Live · ${status.learningAgent.model}` : "Scripted mock (no API key)"} live={status.learningAgent.live} />
@@ -45,7 +46,7 @@ export function ModeBadge({ status }: { status: DeployStatus | null }) {
 function Row({ label, value, live }: { label: string; value: string; live: boolean }) {
   return (
     <div className="flex gap-3 py-0.5">
-      <span className="w-32 shrink-0 text-muted">{label}</span>
+      <span className="w-28 shrink-0 text-muted sm:w-32">{label}</span>
       <span className={live ? "text-emerald-300/90" : "text-note"}>{value}</span>
     </div>
   );

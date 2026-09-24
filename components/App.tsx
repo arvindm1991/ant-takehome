@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Composer, SuggestionList } from "@/components/Composer";
-import { LearnPanel } from "@/components/learn/LearnPanel";
+import { LearnPanel, MentorPeek } from "@/components/learn/LearnPanel";
 import { LiveLearnChip, PostTaskLearnChip, RefresherChip } from "@/components/learn/LearnChips";
 import type { PanelTab } from "@/components/learn/LearnPanel";
 import { Sidebar } from "@/components/Sidebar";
@@ -13,6 +13,8 @@ import { useDeployStatus } from "@/lib/status";
 import { useMemory } from "@/lib/memory/store";
 import { dueRefreshers, estimateOf, normalizeTopicId, type Refresher } from "@/lib/memory/model";
 import type { Learnability } from "@/lib/learn/types";
+import { THREAD_FOCUS_EVENT } from "@/lib/thread/focus";
+import { useWidePanel } from "@/lib/useMediaQuery";
 
 export function App() {
   // The main thread only exposes a generic "prompt sent" observer; learn mode subscribes to it.
@@ -31,6 +33,17 @@ export function App() {
   });
 
   const [tab, setTab] = useState<PanelTab>("session");
+  // Phones and small tablets: chats live in a drawer, the mentor in a bottom sheet that can shrink to a peek bar.
+  const wide = useWidePanel();
+  const [navOpen, setNavOpen] = useState(false);
+  const [sheetFull, setSheetFull] = useState(true);
+  const openSheet = () => setSheetFull(true);
+  useEffect(() => {
+    // When the mentor points at Claude's code, the sheet steps aside so the step is visible.
+    const onFocus = () => setSheetFull(false);
+    window.addEventListener(THREAD_FOCUS_EVENT, onFocus);
+    return () => window.removeEventListener(THREAD_FOCUS_EVENT, onFocus);
+  }, []);
   const dueCount = dueRefreshers(memory).length;
   // A live/post-task session already covers this message (refresher sessions don't).
   const learnedHere = (messageId: string) => session?.messageId === messageId && (session.trigger === "live" || session.trigger === "post_task");
@@ -39,6 +52,7 @@ export function App() {
     if (!r.source) return;
     setActiveId(r.source.threadId);
     setTab("session");
+    openSheet();
     learn.startRefresher(r.source.threadId, r.source.messageId, { id: r.topicId, label: r.label, daysSince: r.daysSince }, "refresher", null);
   };
 
@@ -62,6 +76,7 @@ export function App() {
     if (learn.panelOpen) return learn.setPanelOpen(false);
     learn.setPanelOpen(true);
     setTab("session");
+    openSheet();
     if (canStart) learn.start(active.id, canStart.messageId, canStart.trigger);
   };
 
@@ -81,6 +96,7 @@ export function App() {
             interleave={nudge.interleave}
             onAccept={() => {
               setTab("session");
+              openSheet();
               learn.acceptContextual(active.id, messageId);
             }}
             onDismiss={() => learn.dismissContextual(active.id, messageId)}
@@ -88,35 +104,79 @@ export function App() {
         );
       }
       if (!worthSuggesting(lb) || turn?.status === "done") return null;
-      return <LiveLearnChip topics={lb.topics} onClick={() => learn.start(active.id, messageId, "live")} />;
+      return <LiveLearnChip
+          topics={lb.topics}
+          onClick={() => {
+            openSheet();
+            learn.start(active.id, messageId, "live");
+          }}
+        />;
     },
     afterTurn: (messageId) => {
       const lb = learn.learnability(active.id, messageId);
       const turn = active.turns.find((t) => t.messageId === messageId);
       if (!worthSuggesting(lb) || turn?.status !== "done" || session?.messageId === messageId || learn.contextual(active.id, messageId)) return null;
-      return <PostTaskLearnChip onClick={() => learn.start(active.id, messageId, "post_task")} />;
+      return <PostTaskLearnChip
+          onClick={() => {
+            openSheet();
+            learn.start(active.id, messageId, "post_task");
+          }}
+        />;
     },
   };
 
+  const peek =
+    !wide && learn.panelOpen && !sheetFull ? (
+      <div className="mb-2">
+        <MentorPeek thread={active} session={session} onExpand={openSheet} onNudge={(n, accept) => learn.actOnNudge(active.id, n, accept)} />
+      </div>
+    ) : null;
+
   return (
-    <div className="flex h-full">
-      <Sidebar threads={threads} activeId={activeId} onSelect={setActiveId} onNew={newChat} />
+    <div className="flex h-dvh overflow-hidden">
+      <div className="hidden xl:flex">
+        <Sidebar threads={threads} activeId={activeId} onSelect={setActiveId} onNew={newChat} />
+      </div>
+      {navOpen && (
+        <div className="fixed inset-0 z-50 flex xl:hidden">
+          <Sidebar
+            threads={threads}
+            activeId={activeId}
+            onSelect={(id) => {
+              setActiveId(id);
+              setNavOpen(false);
+            }}
+            onNew={() => {
+              newChat();
+              setNavOpen(false);
+            }}
+            onClose={() => setNavOpen(false)}
+          />
+          <button aria-label="Close chats" onClick={() => setNavOpen(false)} className="flex-1 bg-black/50" />
+        </div>
+      )}
       <main className="relative flex min-w-0 flex-1 flex-col">
-        <TopBar learnOn={learn.panelOpen} onToggleLearn={toggleLearn} dueCount={dueCount}
+        <TopBar
+          learnOn={learn.panelOpen}
+          onToggleLearn={toggleLearn}
+          dueCount={dueCount}
           status={status}
+          onMenu={() => setNavOpen(true)}
           onBell={() => {
             learn.setPanelOpen(true);
             setTab("inbox");
+            openSheet();
           }}
         />
         {empty ? (
-          <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-6 pt-[22vh]">
-            <h1 className="mb-10 flex items-center gap-3 font-serif text-[46px] font-light tracking-tight">
+          <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4 pt-[14vh] pb-6 sm:px-6 sm:pt-[22vh]">
+            <h1 className="mb-8 flex items-center gap-3 font-serif text-[32px] font-light tracking-tight sm:mb-10 sm:text-[46px]">
               <Spark /> Back at it, Arvind
             </h1>
             <div className="w-full max-w-[720px]">
+              {peek}
               <Composer onSend={send} disabled={busy} variant="hero" />
-              <div className="mt-12">
+              <div className="mt-8 sm:mt-12">
                 <SuggestionList onPick={send} />
               </div>
             </div>
@@ -126,42 +186,57 @@ export function App() {
             <div className="min-h-0 flex-1 overflow-y-auto pt-14">
               <ThreadView thread={active} slots={slots} />
             </div>
-            <div className="mx-auto w-full max-w-3xl px-6 pb-4">
+            <div className="mx-auto w-full max-w-3xl px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
+              {peek}
               <Composer onSend={send} disabled={busy} variant="docked" />
             </div>
           </>
         )}
       </main>
-      {learn.panelOpen && (
-        <LearnPanel
-          thread={active}
-          session={session}
-          simulated={status ? !status.learningAgent.live : false}
-          canStart={canStart}
-          error={learn.error}
-          onClose={() => learn.setPanelOpen(false)}
-          onStart={(m, t) => {
-            setTab("session");
-            learn.start(active.id, m, t);
-          }}
-          onObjective={(o) => learn.selectObjective(active.id, o)}
-          onAnswer={(p, text, sel) => learn.answer(active.id, p, text, sel)}
-          onAsk={(text) => learn.ask(active.id, text)}
-          onMove={(mv, target, label) => learn.move(active.id, mv, target, label)}
-          onNudge={(n, accept) => learn.actOnNudge(active.id, n, accept)}
-          onKeepGoing={(target) => learn.keepGoing(active.id, target)}
-          onPickAnotherGoal={() => learn.pickAnotherGoal(active.id)}
-          onWidgetEngaged={learn.widgetEngaged}
-          onWidgetRetry={(a) => learn.retryWidget(active.id, a)}
-          tab={tab}
-          onTab={setTab}
-          onOpenRefresher={openRefresher}
-          threadExists={(id) => threads.some((t) => t.id === id)}
-          dueCount={dueCount}
-        />
-      )}
+      {learn.panelOpen &&
+        (wide ? (
+          panel("side")
+        ) : (
+          <div className={sheetFull ? "" : "hidden"}>
+            <button aria-label="Show Claude's work" onClick={() => setSheetFull(false)} className="fixed inset-0 z-30 bg-black/40" />
+            <div className="fixed inset-x-0 bottom-0 z-40 h-[88dvh]">{panel("sheet")}</div>
+          </div>
+        ))}
     </div>
   );
+
+  function panel(variant: "side" | "sheet") {
+    return (
+      <LearnPanel
+        variant={variant}
+        onMinimize={() => setSheetFull(false)}
+        thread={active}
+        session={session}
+        simulated={status ? !status.learningAgent.live : false}
+        canStart={canStart}
+        error={learn.error}
+        onClose={() => learn.setPanelOpen(false)}
+        onStart={(m, t) => {
+          setTab("session");
+          learn.start(active.id, m, t);
+        }}
+        onObjective={(o) => learn.selectObjective(active.id, o)}
+        onAnswer={(p, text, sel) => learn.answer(active.id, p, text, sel)}
+        onAsk={(text) => learn.ask(active.id, text)}
+        onMove={(mv, target, label) => learn.move(active.id, mv, target, label)}
+        onNudge={(n, accept) => learn.actOnNudge(active.id, n, accept)}
+        onKeepGoing={(target) => learn.keepGoing(active.id, target)}
+        onPickAnotherGoal={() => learn.pickAnotherGoal(active.id)}
+        onWidgetEngaged={learn.widgetEngaged}
+        onWidgetRetry={(a) => learn.retryWidget(active.id, a)}
+        tab={tab}
+        onTab={setTab}
+        onOpenRefresher={openRefresher}
+        threadExists={(id) => threads.some((t) => t.id === id)}
+        dueCount={dueCount}
+      />
+    );
+  }
 }
 
 /** Generic 8-point spark: a nod to the reference, not the Claude logo. */

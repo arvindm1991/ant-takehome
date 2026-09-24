@@ -1,5 +1,5 @@
 "use client";
-import { ChevronDown, Clock, FolderKanban, Plus, Search, Shapes, SlidersHorizontal, Wrench } from "lucide-react";
+import { ChevronDown, Clock, FolderKanban, Plus, Search, Shapes, SlidersHorizontal, Wrench, X } from "lucide-react";
 import type { Thread } from "@/lib/thread/types";
 
 type Props = {
@@ -7,6 +7,8 @@ type Props = {
   activeId: string;
   onSelect: (id: string) => void;
   onNew: () => void;
+  /** Drawer mode (narrow screens): full height overlay with a close button. */
+  onClose?: () => void;
 };
 
 // Static entries so the list reads like a real, lived-in account.
@@ -20,12 +22,17 @@ const NAV = [
   { icon: ChevronDown, label: "More", muted: true },
 ];
 
-export function Sidebar({ threads, activeId, onSelect, onNew }: Props) {
+export function Sidebar({ threads, activeId, onSelect, onNew, onClose }: Props) {
   const started = threads.filter((t) => t.items.length > 0);
 
   return (
-    <aside className="flex h-full w-[272px] shrink-0 flex-col border-r border-border bg-sidebar">
+    <aside aria-label="Chats" className="flex h-full w-[272px] max-w-[85vw] shrink-0 flex-col border-r border-border bg-sidebar pt-[env(safe-area-inset-top)]">
       <nav className="flex flex-col gap-0.5 px-2 pt-4">
+        {onClose && (
+          <button onClick={onClose} aria-label="Close chats" className="mb-1 self-end rounded-lg p-1.5 text-muted hover:bg-raised hover:text-text">
+            <X size={18} />
+          </button>
+        )}
         <button
           onClick={onNew}
           className="flex items-center gap-3 rounded-lg bg-raised px-3 py-2 text-left text-[15px] text-text hover:bg-raised/80"
@@ -58,7 +65,7 @@ export function Sidebar({ threads, activeId, onSelect, onNew }: Props) {
         ))}
       </div>
 
-      <div className="flex items-center gap-2.5 border-t border-border px-4 py-3 text-[15px]">
+      <div className="flex items-center gap-2.5 border-t border-border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-[15px]">
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-raised text-[11px] font-medium">AM</span>
         <span>Arvind</span>
         <span className="text-[13px] text-muted">· Pro</span>

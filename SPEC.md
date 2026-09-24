@@ -111,6 +111,7 @@ A **learning sub-agent** that rides alongside Claude's main agent in regular Cla
   - **Your progress:** mastery bars, evidence timeline, misconceptions.
   - **Inbox:** refresher cards (spaced repetition) and past sessions for this thread.
   - *(Parked, D7: Map tab.)*
+- **Phones and tablets (< 1024 px):** chats move to a drawer (hamburger), and the mentor becomes a **bottom sheet** that shrinks to a one-line **peek bar** above the composer ("Your turn: …", a check-in, or the goal). The peek bar never expands itself; a dot marks something waiting. Tapping a code link or *Show me in Claude's code* minimizes the sheet so the step is visible; accepting a check-in keeps the reply in view. The sheet drops the subtitle and breadcrumb, shows next moves as rows, and hides the toolbar until a goal is picked. Inputs are 16 px so iOS doesn't zoom; safe-area insets are respected.
 - **Mentor identity:** the panel uses its own palette (indigo-slate surface, mentor avatar, serif mentor text) so it never reads as a second Claude.
 - **Memory view:** the *Your progress* tab, showing topics with mastery bars, an evidence timeline per topic and open misconceptions. This is what we show in the video to make the memory legible.
 - **Anchors:** every LSA message carries 0–n anchor chips (`auth.ts · step 2 ↗`). Clicking one scrolls the main thread and highlights that item for about 2 s.

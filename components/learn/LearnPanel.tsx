@@ -6,6 +6,7 @@ import {
   ArrowUp,
   BookOpen,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   Clock,
   Code2,
@@ -59,6 +60,9 @@ type Props = {
   onOpenRefresher: (r: Refresher) => void;
   threadExists: (id: string) => boolean;
   dueCount: number;
+  /** "sheet": the phone layout, a bottom sheet that can shrink to a peek bar (see MentorPeek). */
+  variant?: "side" | "sheet";
+  onMinimize?: () => void;
 };
 
 /**
@@ -66,28 +70,45 @@ type Props = {
  * Its contract is in its controls: it asks, checks and shows; it never does the task.
  */
 export function LearnPanel(props: Props) {
-  const { thread, session, simulated, error, onClose, tab, onTab, dueCount } = props;
+  const { thread, session, simulated, error, onClose, tab, onTab, dueCount, variant = "side", onMinimize } = props;
+  const sheet = variant === "sheet";
   const feed = session ? deriveFeed(session, thread) : [];
-  const bottom = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    // Keep the start of the mentor's latest turn in view (goal list, feedback, or a demo and its question), then as much below as fits.
+    const el = scroller.current;
+    if (!el) return;
+    const turns = el.querySelectorAll<HTMLElement>("[data-mentor-turn]");
+    const last = turns[turns.length - 1];
+    const bottom = el.scrollHeight - el.clientHeight;
+    el.scrollTo({ top: last ? Math.min(bottom, last.offsetTop - 12) : bottom, behavior: "smooth" });
   }, [feed.length, session?.busy]);
 
   return (
-    <aside className="flex h-full w-[440px] shrink-0 flex-col border-l border-mentor-border bg-mentor">
-      <header className="flex items-center gap-3 border-b border-mentor-border px-4 pt-3.5 pb-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-learn/15 text-learn ring-1 ring-learn/40">
-          <GraduationCap size={18} />
+    <aside aria-label="Mentor" className={`flex h-full shrink-0 flex-col bg-mentor ${sheet ? "w-full rounded-t-2xl border-t border-mentor-border" : "w-[440px] border-l border-mentor-border"}`}>
+      {sheet && (
+        <button onClick={onMinimize} aria-label="Minimize mentor" className="flex w-full justify-center pt-2 pb-0.5">
+          <span className="h-1 w-10 rounded-full bg-mentor-border" />
+        </button>
+      )}
+      <header className={`flex items-center gap-3 px-4 ${sheet ? "pt-0.5 pb-1" : "border-b border-mentor-border pt-3.5 pb-3"}`}>
+        <span className={`flex items-center justify-center rounded-full bg-learn/15 text-learn ring-1 ring-learn/40 ${sheet ? "h-7 w-7" : "h-9 w-9"}`}>
+          <GraduationCap size={sheet ? 15 : 18} />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-[14.5px] font-semibold text-learn">
             Mentor
             {simulated && <span className="rounded-full bg-note-soft px-1.5 py-0.5 text-[10.5px] font-normal text-note">scripted mock</span>}
           </div>
-          <div className="truncate text-[12px] text-muted">Asks, checks and shows. Claude does the work.</div>
+          {!sheet && <div className="truncate text-[12px] text-muted">Asks, checks and shows. Claude does the work.</div>}
         </div>
-        <button onClick={onClose} aria-label="Close mentor" className="rounded-md p-1 text-muted hover:bg-mentor-surface hover:text-text">
-          <X size={16} />
+        {sheet && (
+          <button onClick={onMinimize} aria-label="Show Claude's work" className="rounded-md p-1.5 text-muted hover:bg-mentor-surface hover:text-text">
+            <ChevronDown size={18} />
+          </button>
+        )}
+        <button onClick={onClose} aria-label="Close mentor" className={`rounded-md text-muted hover:bg-mentor-surface hover:text-text ${sheet ? "p-1.5" : "p-1"}`}>
+          <X size={sheet ? 18 : 16} />
         </button>
       </header>
       <div className="flex gap-4 border-b border-mentor-border px-4 text-[13px]">
@@ -109,33 +130,96 @@ export function LearnPanel(props: Props) {
         </div>
       ) : (
         <>
-          {session?.objective && <SessionHeader session={session} feed={feed} />}
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+          {session?.objective && <SessionHeader session={session} feed={feed} compact={sheet} />}
+          <div ref={scroller} className="relative min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4">
             {!session && <NoSession canStart={props.canStart} onStart={props.onStart} />}
-            {session && feed.map((e, i) => <Entry key={i} {...props} entry={e} feed={feed} session={session} />)}
+            {session &&
+              feed.map((e, i) => (
+                <div key={i} data-mentor-turn={isMentor(e) && !(i > 0 && isMentor(feed[i - 1])) ? "" : undefined}>
+                  <Entry {...props} entry={e} feed={feed} session={session} />
+                </div>
+              ))}
             {session?.busy && <Thinking objectivesPending={!feed.some((e) => e.kind === "action" && e.action.kind === "objectives")} />}
-            {session && <NextMoves moves={nextMoves(session, feed)} onMove={props.onMove} />}
+            {session && <NextMoves moves={nextMoves(session, feed)} onMove={props.onMove} compact={sheet} />}
             {error && <div className="rounded-lg border border-danger/40 bg-danger-soft px-3 py-2 text-[13px] text-danger">{error}</div>}
-            <div ref={bottom} />
           </div>
-          {session && <NudgeBar nudge={pendingNudge(session, thread.items)} onNudge={props.onNudge} />}
-          {session && <Toolbar session={session} feed={feed} onMove={props.onMove} onAsk={props.onAsk} />}
+          {session && <NudgeBar nudge={pendingNudge(session, thread.items)} onNudge={props.onNudge} compact={sheet} />}
+          {session && <Toolbar session={session} feed={feed} onMove={props.onMove} onAsk={props.onAsk} compact={sheet} />}
         </>
       )}
     </aside>
   );
 }
 
+const isMentor = (e: FeedEntry) => e.kind === "action" || e.kind === "feedback";
+
+/* ------------------------------------------------------------------ phone peek bar */
+
+/**
+ * The minimized mentor on a phone: one quiet line above the composer, so Claude's work stays in view.
+ * It never expands by itself; a new question or check-in only changes the line and adds a dot.
+ */
+export function MentorPeek({ thread, session, onExpand, onNudge }: { thread: Thread; session: LearnSession | null; onExpand: () => void; onNudge: Props["onNudge"] }) {
+  const feed = session ? deriveFeed(session, thread) : [];
+  const nudge = session ? pendingNudge(session, thread.items) : null;
+  const open = session && !session.busy ? openProbe(feed) : null;
+  const hasGoals = feed.some((e) => e.kind === "action" && e.action.kind === "objectives");
+  const [line, waiting] = !session
+    ? ["Give Claude a task and I’ll suggest what to learn from it", false]
+    : session.busy
+      ? ["Mentor is thinking…", false]
+      : open
+        ? [`Your turn: ${open.question.replace(/`/g, "")}`, true]
+        : nudge
+          ? [nudge.text, true]
+          : session.ended
+            ? ["Your recap is ready", true]
+            : !session.objective && hasGoals
+              ? ["Pick something to learn from this task", true]
+              : [session.objective?.label ?? "Mentor", false];
+  return (
+    <div className="flex items-center gap-2 rounded-2xl border border-mentor-border bg-mentor py-1.5 pr-1.5 pl-2 shadow-lg">
+      <button onClick={onExpand} aria-label="Open mentor" className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+        <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-learn/15 text-learn ring-1 ring-learn/40">
+          <GraduationCap size={16} />
+          {waiting && <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-learn ring-2 ring-mentor" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[11px] font-medium text-learn">Mentor</span>
+          <span className={`block truncate text-[13px] ${session?.busy ? "shimmer" : "text-text/90"}`}>{line}</span>
+        </span>
+      </button>
+      {nudge && !open ? (
+        <button
+          onClick={() => {
+            onExpand();
+            onNudge(nudge, true);
+          }}
+          className="shrink-0 rounded-full bg-learn px-3 py-1.5 text-[12.5px] font-medium text-mentor"
+        >
+          {nudge.cta}
+        </button>
+      ) : (
+        <button onClick={onExpand} aria-label="Expand mentor" className="shrink-0 rounded-full p-2 text-muted">
+          <ChevronUp size={18} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ header */
 
-function SessionHeader({ session, feed }: { session: LearnSession; feed: FeedEntry[] }) {
+function SessionHeader({ session, feed, compact }: { session: LearnSession; feed: FeedEntry[]; compact?: boolean }) {
   const arc = arcOf(session, feed);
-  const crumbs = breadcrumb(feed);
+  const allCrumbs = breadcrumb(feed);
+  // Phone: one line. The goal is on its card in the feed; the header keeps only where you are.
+  const crumbs = compact ? [] : allCrumbs;
   const current = Math.min(arc.done + 1, arc.target);
   return (
-    <div className="border-b border-mentor-border bg-mentor-surface/50 px-4 py-2.5">
+    <div className={`border-y border-mentor-border bg-mentor-surface/50 px-4 ${compact ? "py-1.5" : "border-t-0 py-2.5"}`}>
       <div className="flex items-center gap-2 text-[12px]">
-        <span className="truncate font-medium text-text/90">{session.objective?.label}</span>
+        <span className={`truncate font-medium ${compact ? "text-learn" : "text-text/90"}`}>{compact ? (allCrumbs.at(-1) ?? session.objective?.label) : session.objective?.label}</span>
         <span className="ml-auto flex shrink-0 items-center gap-1.5 text-muted" aria-label={`Move ${current} of ${arc.target}`}>
           {session.ended ? "Done" : arc.complete ? "Wrapping up" : `Move ${current} of ${arc.target}`}
           <span className="flex gap-1">
@@ -406,8 +490,30 @@ const MOVE_ICON: Record<MoveKind, typeof Compass> = {
   keep_going: ArrowDownRight,
 };
 
-function NextMoves({ moves, onMove }: { moves: NextMove[]; onMove: Props["onMove"] }) {
+function NextMoves({ moves, onMove, compact }: { moves: NextMove[]; onMove: Props["onMove"]; compact?: boolean }) {
   if (moves.length === 0) return null;
+  const choose = (mv: NextMove) => onMove(mv.move, mv.target, mv.target ? `${mv.label}: ${mv.target}` : mv.label);
+  if (compact) {
+    // Phone: tappable rows, label and where it goes on one line.
+    return (
+      <div className="pt-1" aria-label="Where next">
+        <div className="mb-1 px-1 text-[11px] font-medium uppercase tracking-wide text-muted">Where next?</div>
+        <div className="divide-y divide-mentor-border overflow-hidden rounded-xl border border-learn/30">
+          {moves.map((mv) => {
+            const Icon = MOVE_ICON[mv.move];
+            return (
+              <button key={mv.move} onClick={() => choose(mv)} className="flex w-full items-center gap-2.5 bg-learn/5 px-3 py-2.5 text-left active:bg-learn/15">
+                <Icon size={15} className="shrink-0 text-learn" />
+                <span className="shrink-0 text-[14px] font-medium text-learn">{mv.label}</span>
+                <span className="min-w-0 truncate text-[13px] text-muted">{mv.target || mv.hint}</span>
+                <ChevronRight size={15} className="ml-auto shrink-0 text-muted" />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="pt-1" aria-label="Where next">
       <div className="mb-1.5 px-1 text-[11px] font-medium uppercase tracking-wide text-muted">Where next?</div>
@@ -417,7 +523,7 @@ function NextMoves({ moves, onMove }: { moves: NextMove[]; onMove: Props["onMove
           return (
             <button
               key={mv.move}
-              onClick={() => onMove(mv.move, mv.target, mv.target ? `${mv.label}: ${mv.target}` : mv.label)}
+              onClick={() => choose(mv)}
               title={mv.hint}
               className="rounded-lg border border-learn/35 bg-learn/5 px-2.5 py-2 text-left transition hover:border-learn/70 hover:bg-learn/15"
             >
@@ -433,8 +539,21 @@ function NextMoves({ moves, onMove }: { moves: NextMove[]; onMove: Props["onMove
   );
 }
 
-function NudgeBar({ nudge, onNudge }: { nudge: Nudge | null; onNudge: Props["onNudge"] }) {
+function NudgeBar({ nudge, onNudge, compact }: { nudge: Nudge | null; onNudge: Props["onNudge"]; compact?: boolean }) {
   if (!nudge) return null;
+  if (compact) {
+    return (
+      <div className="appear mx-3 mb-2 flex items-center gap-2 rounded-xl border border-learn/50 bg-learn/10 py-1.5 pr-1 pl-3" role="status">
+        <p className="line-clamp-2 min-w-0 flex-1 text-[13px] leading-snug">{nudge.text}</p>
+        <button onClick={() => onNudge(nudge, true)} className="shrink-0 rounded-lg bg-learn px-2.5 py-1.5 text-[12.5px] font-medium text-mentor">
+          {nudge.cta}
+        </button>
+        <button onClick={() => onNudge(nudge, false)} aria-label="Later" className="shrink-0 rounded-lg p-1.5 text-muted">
+          <X size={15} />
+        </button>
+      </div>
+    );
+  }
   return (
     <div className="appear mx-3 mb-2 rounded-xl border border-learn/50 bg-learn/10 px-3.5 py-2.5 shadow-lg" role="status">
       <div className="flex items-start gap-2">
@@ -461,13 +580,15 @@ const TOOLS: { move: MoveKind; label: string; icon: typeof Compass; title: strin
 ];
 
 /** The mentor's contract, as controls. Free-form questions are secondary. */
-function Toolbar({ session, feed, onMove, onAsk }: { session: LearnSession; feed: FeedEntry[]; onMove: Props["onMove"]; onAsk: Props["onAsk"] }) {
+function Toolbar({ session, feed, onMove, onAsk, compact }: { session: LearnSession; feed: FeedEntry[]; onMove: Props["onMove"]; onAsk: Props["onAsk"]; compact?: boolean }) {
   const [asking, setAsking] = useState(false);
   const [text, setText] = useState("");
   const ready = !!session.objective && !session.busy && !session.ended;
   const trail = latestTrail(feed);
+  // Phone: nothing until a goal is picked, then a single row (labels only, Ask as an icon).
+  if (compact && !session.objective) return null;
   return (
-    <div className="border-t border-mentor-border bg-mentor px-3 pt-2 pb-3">
+    <div className="border-t border-mentor-border bg-mentor px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       {asking && (
         <form
           onSubmit={(e) => {
@@ -490,7 +611,7 @@ function Toolbar({ session, feed, onMove, onAsk }: { session: LearnSession; feed
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => e.key === "Escape" && setAsking(false)}
               placeholder="e.g. why did Claude pin the algorithm?"
-              className="flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-muted/70"
+              className="min-w-0 flex-1 bg-transparent text-[16px] outline-none lg:text-[13.5px] placeholder:text-muted/70"
             />
             <button type="submit" disabled={!ready || !text.trim()} aria-label="Ask the mentor" className="flex h-7 w-7 items-center justify-center rounded-md bg-learn text-mentor disabled:opacity-35">
               <ArrowUp size={14} />
@@ -499,20 +620,25 @@ function Toolbar({ session, feed, onMove, onAsk }: { session: LearnSession; feed
           <p className="mt-1 text-[11px] text-muted">For changes to the work itself, ask Claude in the main chat.</p>
         </form>
       )}
-      <div className="grid grid-cols-[1fr_1fr_1fr_1.3fr] gap-1">
+      <div className={compact ? "flex items-center gap-1.5" : "grid grid-cols-[1fr_1fr_1fr_1.3fr] gap-1"}>
         {TOOLS.map((t) => (
           <button
             key={t.move}
             disabled={!ready}
             title={ready ? t.title : "Pick a goal first"}
             onClick={() => onMove(t.move, t.move === "challenge" ? trail.deeper : "", t.label)}
-            className="flex min-w-0 items-center justify-center gap-1 rounded-full border border-mentor-border bg-mentor-surface px-1 py-1.5 text-[12px] whitespace-nowrap text-text/90 transition hover:border-learn/60 hover:text-learn disabled:opacity-40"
+            className={`flex min-w-0 items-center justify-center gap-1 rounded-full border border-mentor-border bg-mentor-surface whitespace-nowrap text-text/90 transition hover:border-learn/60 hover:text-learn disabled:opacity-40 ${compact ? "grow basis-auto px-2 py-2 text-[12.5px]" : "px-1 py-1.5 text-[12px]"}`}
           >
-            <t.icon size={12} className="shrink-0" /> {t.label}
+            {!compact && <t.icon size={12} className="shrink-0" />} {t.label}
           </button>
         ))}
+        {compact && (
+          <button onClick={() => setAsking((v) => !v)} aria-label="Ask" aria-expanded={asking} className={`shrink-0 rounded-full p-2 ${asking ? "text-learn" : "text-muted"}`}>
+            <MessageCircleQuestion size={18} />
+          </button>
+        )}
       </div>
-      <div className="mt-1.5 flex items-center justify-between gap-2 px-1">
+      <div className={`mt-1.5 items-center justify-between gap-2 px-1 ${compact ? "hidden" : "flex"}`}>
         <span className="text-[11px] text-muted">I ask, check and show. Claude does the work.</span>
         <button
           onClick={() => setAsking((v) => !v)}
@@ -658,7 +784,7 @@ function ProbeInput({ probeId, mode, options, disabled, onAnswer }: { probeId: s
         rows={3}
         aria-label="Your answer"
         placeholder={PLACEHOLDER[mode]}
-        className="w-full resize-none rounded-lg border border-mentor-border bg-mentor px-3 py-2 text-[14px] outline-none placeholder:text-muted focus:border-learn/60"
+        className="w-full resize-none rounded-lg border border-mentor-border bg-mentor px-3 py-2 text-[16px] outline-none placeholder:text-muted focus:border-learn/60 lg:text-[14px]"
       />
       <button type="submit" disabled={disabled || !text.trim()} className="mt-2 rounded-lg bg-learn px-3 py-1.5 text-[13px] font-medium text-mentor disabled:opacity-40">
         Check my answer

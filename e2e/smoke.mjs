@@ -5,7 +5,7 @@
 //   BASE_URL=http://localhost:3100 node e2e/smoke.mjs
 //
 // Needs Playwright (`npm i -D playwright` or set PLAYWRIGHT_MODULE to an install path).
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
+const { chromium, devices } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const BASE = process.env.BASE_URL ?? "http://localhost:3100";
 
 const browser = await chromium.launch();
@@ -13,8 +13,8 @@ const errors = [];
 let failed = 0;
 let current = null;
 
-async function page() {
-  const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+async function page(device) {
+  const ctx = await browser.newContext(device ?? { viewport: { width: 1600, height: 1000 } });
   const p = await ctx.newPage();
   current = p;
   p.on("pageerror", (e) => errors.push(e.message));
@@ -147,6 +147,28 @@ await journey("J3 refreshers: persist → +3 days → Inbox refresher → interl
   await p.getByRole("button", { name: "New", exact: true }).click();
   await p.getByRole("button", { name: /Primary demo/ }).click();
   await p.getByText(/You practised/).first().waitFor({ timeout: 8000 });
+});
+
+await journey("Phone: drawer → chip → goal sheet → answer → peek bar → anchor steps aside → no sideways scroll", async () => {
+  const p = await page(devices["iPhone 13"]);
+  await p.getByLabel("Open chats").click();
+  await p.getByRole("button", { name: "New", exact: true }).click(); // closes the drawer
+  await p.getByRole("button", { name: /Primary demo/ }).click();
+  await p.getByText("Learn while Claude builds this").click({ timeout: 8000 });
+  await p.getByText("Find where login plugs into this repo").waitFor({ timeout: 8000 });
+  if (!(await p.getByText("Find where login plugs into this repo").isVisible())) throw new Error("first goal card not in view");
+  await p.getByText("Explain what a server must check before it trusts a JWT").click();
+  await answerWith(p, "Verify the signature with the secret, check the expiry exp, and pin the algorithm.");
+  await p.getByText("Nailed it", { exact: true }).first().waitFor({ timeout: 8000 });
+  await p.getByLabel("Minimize mentor").click();
+  await p.getByLabel("Open mentor").waitFor();
+  await p.getByLabel("Open mentor").click();
+  await p.getByText("Check my prediction").click({ timeout: 40000 });
+  await p.getByText(/Which of the three did your prediction cover/).waitFor({ timeout: 8000 }); // reply stays in view
+  await p.locator('aside[aria-label="Mentor"] button', { hasText: "lib/auth.ts ↗" }).first().click();
+  await p.getByLabel("Open mentor").waitFor({ timeout: 3000 }); // sheet stepped aside for the code
+  const overflow = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  if (overflow > 0) throw new Error(`page scrolls sideways by ${overflow}px`);
 });
 
 await browser.close();

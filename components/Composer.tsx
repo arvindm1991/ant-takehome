@@ -63,14 +63,14 @@ export function Composer({ onSend, disabled, variant }: Props) {
           <span className="flex h-8 w-8 items-center justify-center rounded-lg text-text/80">
             <Plus size={18} strokeWidth={1.75} />
           </span>
-          <span className="flex rounded-lg bg-bg/60 p-0.5 text-[14px]">
+          <span className="hidden rounded-lg bg-bg/60 p-0.5 text-[14px] sm:flex">
             <span className="rounded-md px-3 py-1 text-muted">Chat</span>
             <span className="rounded-md bg-raised px-3 py-1 text-text">Cowork</span>
           </span>
           <span className="ml-auto text-[14px] text-text/90">
             Opus 5 <span className="text-muted">Medium</span>
           </span>
-          <Mic size={17} strokeWidth={1.75} className="mx-1 text-text/80" />
+          <Mic size={17} strokeWidth={1.75} className="mx-1 hidden text-text/80 sm:block" />
           <button
             type="submit"
             disabled={disabled || !text.trim()}
@@ -82,12 +82,12 @@ export function Composer({ onSend, disabled, variant }: Props) {
         </div>
       </form>
 
-      <div className="relative mt-2 flex items-center gap-5 px-5 text-[14px] text-text/80">
+      <div className="relative mt-2 flex items-center gap-5 px-2 text-[14px] text-text/80 sm:px-5">
         <button type="button" onClick={() => setShowRepo((v) => !v)} className="flex items-center gap-1.5 hover:text-text">
           <Folder size={14} strokeWidth={1.75} /> {REPO_NAME}
         </button>
-        <span className="text-muted">Manual</span>
-        <span className="text-muted">Output</span>
+        <span className="hidden text-muted sm:inline">Manual</span>
+        <span className="hidden text-muted sm:inline">Output</span>
         {showRepo && <RepoPopover onClose={() => setShowRepo(false)} />}
       </div>
     </div>
@@ -105,13 +105,13 @@ export function SuggestionList({ onPick, compact }: { onPick: (t: string) => voi
             e.preventDefault();
             onPick(text);
           }}
-          className={`flex w-full items-center gap-4 rounded-xl px-4 text-left text-[15.5px] hover:bg-raised/60 ${compact ? "py-2" : "py-3"}`}
+          className={`flex w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] hover:bg-raised/60 sm:gap-4 sm:px-4 sm:text-[15.5px] ${compact ? "py-2" : "py-3"}`}
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-bg/50 text-text/70">
             <Icon size={17} strokeWidth={1.5} />
           </span>
           <span>{text}</span>
-          {tag && <span className="ml-auto rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent">{tag}</span>}
+          {tag && <span className="ml-auto shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent">{tag}</span>}
         </button>
       ))}
     </div>
@@ -122,7 +122,7 @@ function RepoPopover({ onClose }: { onClose: () => void }) {
   const [open, setOpen] = useState<string | null>(null);
   const file = ACME_NOTES.find((f) => f.path === open);
   return (
-    <div className="absolute left-3 top-full z-20 mt-2 w-[420px] rounded-xl border border-border bg-surface p-3 shadow-2xl">
+    <div className="absolute left-3 top-full z-20 mt-2 w-[min(420px,calc(100vw-40px))] rounded-xl border border-border bg-surface p-3 shadow-2xl">
       <div className="mb-2 flex items-center justify-between text-[13px]">
         <span className="flex items-center gap-1.5 font-medium">
           <Code2 size={14} /> {REPO_NAME}

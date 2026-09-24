@@ -23,7 +23,7 @@ export function ThreadView({ thread, slots }: { thread: Thread; slots?: ThreadSl
   const prompts = thread.items.filter((i) => i.kind === "user_prompt");
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-8">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       {prompts.map((p) => {
         const messageId = p.messageId.replace("u", "m");
         const turn = thread.turns.find((t) => t.messageId === messageId);
@@ -132,9 +132,9 @@ function Step({ item }: { item: ThreadItem }) {
   switch (item.kind) {
     case "read":
       return (
-        <div className="flex items-baseline gap-2 px-1 text-sm">
+        <div className="flex min-w-0 items-baseline gap-2 px-1 text-sm">
           <span className="text-muted">Read</span>
-          <code className="rounded bg-code px-1.5 py-0.5 font-mono text-[12.5px]">{item.title}</code>
+          <code className="shrink-0 rounded bg-code px-1.5 py-0.5 font-mono text-[12.5px]">{item.title}</code>
           <span className="truncate text-muted">{item.content}</span>
         </div>
       );
@@ -166,14 +166,14 @@ function CodeCard({ item }: { item: ThreadItem }) {
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
       <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm">
         <span className="text-muted">{item.kind === "command" ? "$" : "✎"}</span>
-        <span className="font-mono text-[13px] font-medium">{item.title}</span>
-        <span className="ml-auto text-xs text-muted">
+        <span className="min-w-0 truncate font-mono text-[13px] font-medium">{item.title}</span>
+        <span className="ml-auto shrink-0 text-xs text-muted">
           {item.kind === "file" ? `${lines} lines · ` : ""}
           {open ? "Collapse" : "Expand"}
         </span>
       </button>
       {open && (
-        <pre className="max-h-96 overflow-auto border-t border-border bg-code px-4 py-3 font-mono text-[12.5px] leading-relaxed">
+        <pre className="max-h-96 overflow-auto border-t border-border bg-code px-3 py-3 sm:px-4 font-mono text-[12.5px] leading-relaxed">
           {item.content}
         </pre>
       )}

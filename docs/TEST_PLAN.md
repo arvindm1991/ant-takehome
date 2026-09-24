@@ -192,7 +192,7 @@ Mode: **M** = mock (deterministic) · **L** = live · **M/L** = both.
 | N2 | Screen-reader labels: learn switch (`role="switch"`), bell (count in label), widget iframe title |
 | N3 | Contrast of muted text and verdict badges in the dark theme |
 | N4 | Anchor links: scroll plus highlight is noticeable but not jarring |
-| N5 | Narrow window (< 1200 px): the three-panel layout degrades acceptably (not a target, note the behaviour) |
+| N5 | Phone (iPhone 13 / SE) and tablet: no sideways scroll; chats drawer; mentor sheet ↔ peek bar; the first goal card is in view; a new mentor turn scrolls to its start; code links minimize the sheet; inputs don't zoom on focus (smoke: phone journey) |
 | N6 | Copy review: no remedial tone; clear prototype notes; no jargon in learner-facing text |
 
 ### O. Performance and cost (live)
