@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Composer, SuggestionList } from "@/components/Composer";
-import { LearnPanel, LearnPeek } from "@/components/learn/LearnPanel";
+import { LearnPanel, LearnPeek, LearnRail } from "@/components/learn/LearnPanel";
+import { ResizeHandle } from "@/components/ResizeHandle";
 import { LiveLearnChip, PostTaskLearnChip, RefresherChip } from "@/components/learn/LearnChips";
 import type { PanelTab } from "@/components/learn/LearnPanel";
 import { Sidebar } from "@/components/Sidebar";
@@ -14,7 +15,26 @@ import { useMemory } from "@/lib/memory/store";
 import { dueRefreshers, estimateOf, normalizeTopicId, type Refresher } from "@/lib/memory/model";
 import type { Learnability } from "@/lib/learn/types";
 import { THREAD_FOCUS_EVENT } from "@/lib/thread/focus";
-import { useWidePanel } from "@/lib/useMediaQuery";
+import { useMediaQuery, useWidePanel } from "@/lib/useMediaQuery";
+
+const PANEL_DEFAULT = 440;
+const PANEL_MIN = 360;
+const PANEL_MAX = 960;
+
+// Layout preferences are per-viewer conveniences; storage may be unavailable (private mode), so never throw.
+function stored(key: string, fallback: number): number {
+  try {
+    const v = Number(localStorage.getItem(`learnMode.ui.${key}`));
+    return Number.isFinite(v) && v > 0 ? v : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function store(key: string, value: number) {
+  try {
+    localStorage.setItem(`learnMode.ui.${key}`, String(value));
+  } catch {}
+}
 
 export function App() {
   // The main thread only exposes a generic "prompt sent" observer; learn mode subscribes to it.
@@ -37,7 +57,15 @@ export function App() {
   const wide = useWidePanel();
   const [navOpen, setNavOpen] = useState(false);
   const [sheetFull, setSheetFull] = useState(true);
-  const openSheet = () => setSheetFull(true);
+  // Wide screens: the Learn mode panel can be collapsed to a rail (Learn mode stays on) and resized; chats can be collapsed.
+  const xl = useMediaQuery("(min-width: 1280px)");
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => stored("sidebarCollapsed", 0) === 1);
+  const [panelWidth, setPanelWidth] = useState(() => stored("learnPanelWidth", PANEL_DEFAULT));
+  const openSheet = () => {
+    setSheetFull(true);
+    setPanelCollapsed(false);
+  };
   useEffect(() => {
     // When the learning agent points at Claude's code, the sheet steps aside so the step is visible.
     const onFocus = () => setSheetFull(false);
@@ -157,8 +185,17 @@ export function App() {
 
   return (
     <div className="flex h-dvh overflow-hidden">
-      <div className="hidden xl:flex">
-        <Sidebar threads={threads} activeId={activeId} onSelect={setActiveId} onNew={newChat} />
+      <div className={sidebarCollapsed ? "hidden" : "hidden xl:flex"}>
+        <Sidebar
+          threads={threads}
+          activeId={activeId}
+          onSelect={setActiveId}
+          onNew={newChat}
+          onCollapse={() => {
+            setSidebarCollapsed(true);
+            store("sidebarCollapsed", 1);
+          }}
+        />
       </div>
       {navOpen && (
         <div className="fixed inset-0 z-50 flex xl:hidden">
@@ -184,7 +221,12 @@ export function App() {
           onToggleLearn={toggleLearn}
           dueCount={dueCount}
           status={status}
-          onMenu={() => setNavOpen(true)}
+          showMenu={sidebarCollapsed}
+          onMenu={() => {
+            if (!xl) return setNavOpen(true);
+            setSidebarCollapsed(false);
+            store("sidebarCollapsed", 0);
+          }}
           onBell={() => {
             learn.setPanelOpen(true);
             setTab("inbox");
@@ -206,9 +248,7 @@ export function App() {
           </div>
         ) : (
           <>
-            <div className="min-h-0 flex-1 overflow-y-auto pt-14">
-              <ThreadView thread={active} slots={slots} />
-            </div>
+            <ThreadView thread={active} slots={slots} className="relative min-h-0 flex-1 overflow-y-auto pt-14" />
             <div className="mx-auto w-full max-w-3xl px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
               {peek}
               <Composer onSend={send} disabled={busy} variant="docked" />
@@ -218,7 +258,20 @@ export function App() {
       </main>
       {learn.panelOpen &&
         (wide ? (
-          panel("side")
+          <>
+            <div className={`relative flex shrink-0 ${panelCollapsed ? "hidden" : ""}`} style={{ width: Math.min(panelWidth, panelMax()) }}>
+              <ResizeHandle
+                width={Math.min(panelWidth, panelMax())}
+                min={PANEL_MIN}
+                max={panelMax()}
+                defaultWidth={PANEL_DEFAULT}
+                onChange={setPanelWidth}
+                onCommit={(w) => store("learnPanelWidth", w)}
+              />
+              {panel("side")}
+            </div>
+            {panelCollapsed && <LearnRail thread={active} session={session} onExpand={() => setPanelCollapsed(false)} />}
+          </>
         ) : (
           <div className={sheetFull ? "" : "hidden"}>
             <button aria-label="Show Claude's work" onClick={() => setSheetFull(false)} className="fixed inset-0 z-30 bg-black/40" />
@@ -228,11 +281,17 @@ export function App() {
     </div>
   );
 
+  // Keep at least ~480px for Claude's thread (plus the chats sidebar when it's showing).
+  function panelMax() {
+    const sidebar = xl && !sidebarCollapsed ? 272 : 0;
+    return Math.max(PANEL_MIN, Math.min(PANEL_MAX, (typeof window === "undefined" ? 1440 : window.innerWidth) - sidebar - 480));
+  }
+
   function panel(variant: "side" | "sheet") {
     return (
       <LearnPanel
         variant={variant}
-        onMinimize={() => setSheetFull(false)}
+        onMinimize={() => (variant === "sheet" ? setSheetFull(false) : setPanelCollapsed(true))}
         thread={active}
         session={session}
         simulated={status ? !status.learningAgent.live : false}

@@ -19,6 +19,8 @@ import {
   Loader2,
   MousePointerClick,
   Mountain,
+  PanelRightClose,
+  PanelRightOpen,
   Sparkles,
   X,
   ZoomOut,
@@ -30,6 +32,8 @@ import { useMemory } from "@/lib/memory/store";
 import type { FeedEntry, LearnAction, LearnSession, MoveKind, Objective, ProbeMode, Verdict } from "@/lib/learn/types";
 import type { Thread } from "@/lib/thread/types";
 import { focusThreadItem } from "@/lib/thread/focus";
+import { useFollowScroll } from "@/lib/useFollowScroll";
+import { JumpToLatest } from "../JumpToLatest";
 import { ProgressView } from "./ProgressView";
 import { Widget } from "./Widget";
 import { InboxView } from "./InboxView";
@@ -62,6 +66,7 @@ type Props = {
   dueCount: number;
   /** "sheet": the phone layout, a bottom sheet that can shrink to a peek bar (see LearnPeek). */
   variant?: "side" | "sheet";
+  /** Collapse without turning Learn mode off: the sheet shrinks to its peek bar, the side panel to a rail. */
   onMinimize?: () => void;
 };
 
@@ -74,19 +79,26 @@ export function LearnPanel(props: Props) {
   const sheet = variant === "sheet";
   const feed = session ? deriveFeed(session, thread) : [];
   const nudge = session ? pendingNudge(session, thread.items) : null;
-  const scroller = useRef<HTMLDivElement>(null);
+  const { ref: scrollRef, el: scrollEl, following, paused, resume, scrollTo, scrollToBottom } = useFollowScroll();
+  // Anything the learner does (answer, ask, pick a goal or a next step) means "show me what comes next".
+  const acted = `${session?.id}:${session?.objective?.label ?? ""}:${feed.filter((e) => e.kind === "answer" || e.kind === "user" || e.kind === "move").length}`;
+  const seenActed = useRef(acted);
   useEffect(() => {
+    if (acted !== seenActed.current) {
+      seenActed.current = acted;
+      resume();
+    }
+    // Only follow while the reader is at the bottom; scrolling up to read or review pauses it.
+    if (!scrollEl || !following()) return;
     // Keep the start of the latest turn in view (goal list, feedback, a demo and its question, a check-in), then as much below as fits.
-    const el = scroller.current;
-    if (!el) return;
-    const turns = el.querySelectorAll<HTMLElement>("[data-lsa-turn]");
+    const turns = scrollEl.querySelectorAll<HTMLElement>("[data-lsa-turn]");
     const last = turns[turns.length - 1];
-    const bottom = el.scrollHeight - el.clientHeight;
-    el.scrollTo({ top: last ? Math.min(bottom, last.offsetTop - 12) : bottom, behavior: "smooth" });
-  }, [feed.length, session?.busy, nudge?.key]);
+    const bottom = scrollEl.scrollHeight - scrollEl.clientHeight;
+    scrollTo(last ? Math.min(bottom, last.offsetTop - 12) : bottom);
+  }, [feed.length, session?.busy, nudge?.key, acted, scrollEl, following, resume, scrollTo]);
 
   return (
-    <aside aria-label={LSA_NAME} className={`flex h-full shrink-0 flex-col bg-lsa ${sheet ? "w-full rounded-t-2xl border-t border-lsa-border" : "w-[440px] border-l border-lsa-border"}`}>
+    <aside aria-label={LSA_NAME} className={`flex h-full shrink-0 flex-col bg-lsa ${sheet ? "w-full rounded-t-2xl border-t border-lsa-border" : "w-full border-l border-lsa-border"}`}>
       {sheet && (
         <button onClick={onMinimize} aria-label="Minimize learn mode" className="flex w-full justify-center pt-2 pb-0.5">
           <span className="h-1 w-10 rounded-full bg-lsa-border" />
@@ -103,10 +115,16 @@ export function LearnPanel(props: Props) {
           </div>
           {!sheet && <div className="truncate text-[12px] text-muted">Learn from what Claude is building. Claude does the work.</div>}
         </div>
-        {sheet && (
+        {sheet ? (
           <button onClick={onMinimize} aria-label="Show Claude's work" className="rounded-md p-1.5 text-muted hover:bg-lsa-surface hover:text-text">
             <ChevronDown size={18} />
           </button>
+        ) : (
+          onMinimize && (
+            <button onClick={onMinimize} aria-label="Collapse learn mode" title="Collapse (Learn mode stays on)" className="rounded-md p-1 text-muted hover:bg-lsa-surface hover:text-text">
+              <PanelRightClose size={16} />
+            </button>
+          )
         )}
         <button onClick={onClose} aria-label="Turn off learn mode" title="Turn off learn mode" className={`rounded-md text-muted hover:bg-lsa-surface hover:text-text ${sheet ? "p-1.5" : "p-1"}`}>
           <X size={sheet ? 18 : 16} />
@@ -132,7 +150,7 @@ export function LearnPanel(props: Props) {
       ) : (
         <>
           {session?.objective && <SessionHeader session={session} feed={feed} compact={sheet} />}
-          <div ref={scroller} className="relative min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4">
+          <div ref={scrollRef} className="relative min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4">
             {!session && <NoSession canStart={props.canStart} />}
             {session &&
               feed.map((e, i) => (
@@ -147,6 +165,15 @@ export function LearnPanel(props: Props) {
               </div>
             )}
             {error && <div className="rounded-lg border border-danger/40 bg-danger-soft px-3 py-2 text-[13px] text-danger">{error}</div>}
+            {paused && (
+              <JumpToLatest
+                tone="learn"
+                onClick={() => {
+                  resume();
+                  scrollToBottom();
+                }}
+              />
+            )}
           </div>
           {session && <LsaComposer session={session} feed={feed} onAnswer={props.onAnswer} onAsk={props.onAsk} onMove={props.onMove} compact={sheet} />}
         </>
@@ -163,12 +190,13 @@ const isLsa = (e: FeedEntry) => e.kind === "action" || e.kind === "feedback";
  * Learn mode minimized on a phone: one line above the composer, so Claude's work stays in view.
  * It never expands by itself; a new question or check-in only changes the line and adds a dot.
  */
-export function LearnPeek({ thread, session, onExpand, onNudge }: { thread: Thread; session: LearnSession | null; onExpand: () => void; onNudge: Props["onNudge"] }) {
+/** One line on what Learn mode is doing, and whether something is waiting for the learner. */
+function peekState(thread: Thread, session: LearnSession | null) {
   const feed = session ? deriveFeed(session, thread) : [];
   const nudge = session ? pendingNudge(session, thread.items) : null;
   const open = session && !session.busy ? openProbe(feed) : null;
   const hasGoals = feed.some((e) => e.kind === "action" && e.action.kind === "objectives");
-  const [line, waiting] = !session
+  const [line, waiting]: [string, boolean] = !session
     ? ["On. Give Claude a task and I’ll start teaching from it", false]
     : session.busy
       ? ["Thinking…", false]
@@ -181,6 +209,28 @@ export function LearnPeek({ thread, session, onExpand, onNudge }: { thread: Thre
             : !session.objective && hasGoals
               ? ["Pick something to learn from this task", true]
               : [session.objective?.label ?? LSA_NAME, false];
+  return { line, waiting, nudge, open };
+}
+
+/** Learn mode collapsed on a wide screen: a slim rail that still shows when something is waiting. */
+export function LearnRail({ thread, session, onExpand }: { thread: Thread; session: LearnSession | null; onExpand: () => void }) {
+  const { line, waiting } = peekState(thread, session);
+  return (
+    <aside aria-label={`${LSA_NAME} (collapsed)`} className="flex h-full w-12 shrink-0 flex-col items-center gap-3 border-l border-lsa-border bg-lsa pt-3.5">
+      <button onClick={onExpand} aria-label="Expand learn mode" title={line} className="relative flex h-9 w-9 items-center justify-center rounded-full bg-learn/15 text-learn ring-1 ring-learn/40 hover:bg-learn/25">
+        <GraduationCap size={17} />
+        {waiting && <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-learn ring-2 ring-lsa" />}
+      </button>
+      <button onClick={onExpand} aria-hidden tabIndex={-1} className="rounded-md p-1 text-muted hover:text-text">
+        <PanelRightOpen size={16} />
+      </button>
+      <span className="mt-1 text-[11px] font-medium tracking-wide text-learn/80 [writing-mode:vertical-rl]">{LSA_NAME}</span>
+    </aside>
+  );
+}
+
+export function LearnPeek({ thread, session, onExpand, onNudge }: { thread: Thread; session: LearnSession | null; onExpand: () => void; onNudge: Props["onNudge"] }) {
+  const { line, waiting, nudge, open } = peekState(thread, session);
   return (
     <div className="flex items-center gap-2 rounded-2xl border border-lsa-border bg-lsa py-1.5 pr-1.5 pl-2 shadow-lg">
       <button onClick={onExpand} aria-label="Open learn mode" className="flex min-w-0 flex-1 items-center gap-2.5 text-left">

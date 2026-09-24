@@ -125,6 +125,41 @@ await journey("Suggestions in Claude's thread can be dismissed and stay dismisse
   if ((await p.getByText("understand it before you review it").count()) !== 0) throw new Error("post-task suggestion shown after dismissal");
 });
 
+await journey("Layout: scrolling up stops auto-scroll; panel collapses to a rail and resizes; chats collapse", async () => {
+  const p = await page();
+  await startLearning(p, "Explain what a server must check before it trusts a JWT");
+  await answerWith(p, "Verify the signature with the secret, check the expiry exp, and pin the algorithm.");
+  await p.getByText("Nailed it", { exact: true }).first().waitFor({ timeout: 8000 });
+  // Scroll the Learn mode panel up to re-read; a check-in arriving later must not yank it back down.
+  const scroller = p.locator('aside[aria-label="Learn mode"] .overflow-y-auto').first();
+  await scroller.hover();
+  await p.mouse.wheel(0, -6000);
+  await p.waitForTimeout(600);
+  await p.getByText("Check my prediction").waitFor({ timeout: 40000 });
+  await p.waitForTimeout(1200);
+  if ((await scroller.evaluate((el) => el.scrollTop)) > 40) throw new Error("panel scrolled back down while the reader was reading");
+  await p.locator('aside[aria-label="Learn mode"]').getByRole("button", { name: "Jump to latest" }).click();
+  // Collapse keeps Learn mode on.
+  await p.getByRole("button", { name: "Collapse learn mode" }).click();
+  await p.getByRole("button", { name: "Expand learn mode" }).waitFor();
+  if ((await p.getByRole("switch").getAttribute("aria-checked")) !== "true") throw new Error("collapsing turned Learn mode off");
+  await p.getByRole("button", { name: "Expand learn mode" }).click();
+  // Drag the panel's edge left to widen it.
+  const panel = p.locator('aside[aria-label="Learn mode"]');
+  const before = (await panel.boundingBox()).width;
+  const h = await p.getByRole("separator", { name: "Resize learn mode panel" }).boundingBox();
+  await p.mouse.move(h.x + h.width / 2, h.y + 300);
+  await p.mouse.down();
+  await p.mouse.move(h.x - 200, h.y + 300, { steps: 8 });
+  await p.mouse.up();
+  const after = (await panel.boundingBox()).width;
+  if (after < before + 150) throw new Error(`panel did not widen (${before} → ${after})`);
+  // Chats sidebar collapses and comes back.
+  await p.getByRole("button", { name: "Collapse chats" }).click();
+  await p.getByRole("button", { name: "Open chats" }).click();
+  await p.getByRole("button", { name: "Collapse chats" }).waitFor();
+});
+
 await journey("Toggle first → learn mode starts on its own; one text box answers, then asks; task requests redirect", async () => {
   const p = await page();
   await p.getByRole("switch").click();

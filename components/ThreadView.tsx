@@ -3,6 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { AssistantTurn, Thread, ThreadItem } from "@/lib/thread/types";
 import { PrototypeNote } from "./PrototypeNote";
+import { THREAD_FOCUS_EVENT } from "@/lib/thread/focus";
+import { useFollowScroll } from "@/lib/useFollowScroll";
+import { JumpToLatest } from "./JumpToLatest";
 
 export type ThreadSlots = {
   /** Rendered under a user prompt (e.g. the learn-mode chip). */
@@ -11,35 +14,57 @@ export type ThreadSlots = {
   afterTurn?: (messageId: string) => React.ReactNode;
 };
 
-export function ThreadView({ thread, slots }: { thread: Thread; slots?: ThreadSlots }) {
-  const bottom = useRef<HTMLDivElement>(null);
+export function ThreadView({ thread, slots, className }: { thread: Thread; slots?: ThreadSlots; className?: string }) {
+  const { ref: scrollRef, following, paused, resume, pause, scrollToBottom } = useFollowScroll();
   const revealedCount = thread.items.filter((i) => i.revealed).length;
   const lastReasoningLen = thread.items.findLast((i) => i.kind === "reasoning")?.content.length ?? 0;
+  const turns = thread.turns.length;
+  const seenTurns = useRef(turns);
 
+  // Stop following when something points at a specific step (a Learn mode link), so it stays in view.
   useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [revealedCount, lastReasoningLen, thread.turns.length]);
+    window.addEventListener(THREAD_FOCUS_EVENT, pause);
+    return () => window.removeEventListener(THREAD_FOCUS_EVENT, pause);
+  }, [pause]);
+
+  // Follow Claude's output only while the reader is at the bottom; a new prompt always follows.
+  useEffect(() => {
+    if (turns !== seenTurns.current) {
+      seenTurns.current = turns;
+      resume();
+    }
+    if (following()) scrollToBottom();
+  }, [revealedCount, lastReasoningLen, turns, following, resume, scrollToBottom]);
 
   const prompts = thread.items.filter((i) => i.kind === "user_prompt");
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
-      {prompts.map((p) => {
-        const messageId = p.messageId.replace("u", "m");
-        const turn = thread.turns.find((t) => t.messageId === messageId);
-        const items = thread.items.filter((i) => i.messageId === messageId);
-        return (
-          <div key={p.id} className="flex flex-col gap-3">
-            <Item item={p}>
-              <div className="ml-auto max-w-[85%] rounded-2xl bg-raised px-4 py-2.5 text-[15.5px]">{p.content}</div>
-            </Item>
-            {slots?.afterPrompt?.(messageId)}
-            {turn && <AssistantBlock turn={turn} items={items} />}
-            {slots?.afterTurn?.(messageId)}
-          </div>
-        );
-      })}
-      <div ref={bottom} />
+    <div ref={scrollRef} className={className}>
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+        {prompts.map((p) => {
+          const messageId = p.messageId.replace("u", "m");
+          const turn = thread.turns.find((t) => t.messageId === messageId);
+          const items = thread.items.filter((i) => i.messageId === messageId);
+          return (
+            <div key={p.id} className="flex flex-col gap-3">
+              <Item item={p}>
+                <div className="ml-auto max-w-[85%] rounded-2xl bg-raised px-4 py-2.5 text-[15.5px]">{p.content}</div>
+              </Item>
+              {slots?.afterPrompt?.(messageId)}
+              {turn && <AssistantBlock turn={turn} items={items} />}
+              {slots?.afterTurn?.(messageId)}
+            </div>
+          );
+        })}
+      </div>
+      {paused && (
+        <JumpToLatest
+          onClick={() => {
+            resume();
+            scrollToBottom();
+          }}
+        />
+      )}
     </div>
   );
 }

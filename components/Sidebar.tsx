@@ -1,5 +1,5 @@
 "use client";
-import { ChevronDown, Clock, FolderKanban, Plus, Search, Shapes, SlidersHorizontal, Wrench, X } from "lucide-react";
+import { ChevronDown, Clock, FolderKanban, PanelLeftClose, Plus, Search, Shapes, SlidersHorizontal, Wrench, X } from "lucide-react";
 import type { Thread } from "@/lib/thread/types";
 
 type Props = {
@@ -9,6 +9,8 @@ type Props = {
   onNew: () => void;
   /** Drawer mode (narrow screens): full height overlay with a close button. */
   onClose?: () => void;
+  /** Wide screens: collapse the sidebar (a button in the top bar brings it back). */
+  onCollapse?: () => void;
 };
 
 // Static entries so the list reads like a real, lived-in account.
@@ -22,12 +24,17 @@ const NAV = [
   { icon: ChevronDown, label: "More", muted: true },
 ];
 
-export function Sidebar({ threads, activeId, onSelect, onNew, onClose }: Props) {
+export function Sidebar({ threads, activeId, onSelect, onNew, onClose, onCollapse }: Props) {
   const started = threads.filter((t) => t.items.length > 0);
 
   return (
     <aside aria-label="Chats" className="flex h-full w-[272px] max-w-[85vw] shrink-0 flex-col border-r border-border bg-sidebar pt-[env(safe-area-inset-top)]">
       <nav className="flex flex-col gap-0.5 px-2 pt-4">
+        {onCollapse && (
+          <button onClick={onCollapse} aria-label="Collapse chats" title="Collapse sidebar" className="mb-1 self-end rounded-lg p-1.5 text-muted hover:bg-raised hover:text-text">
+            <PanelLeftClose size={18} />
+          </button>
+        )}
         {onClose && (
           <button onClick={onClose} aria-label="Close chats" className="mb-1 self-end rounded-lg p-1.5 text-muted hover:bg-raised hover:text-text">
             <X size={18} />
