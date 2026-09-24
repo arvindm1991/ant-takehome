@@ -200,11 +200,11 @@ await journey("J3 refreshers: persist → +3 days → Inbox refresher → interl
   await p.getByText("Session recap").waitFor({ timeout: 10000 });
   await p.getByRole("button", { name: "New", exact: true }).click();
   await p.getByRole("button", { name: /rate limiting/ }).click();
-  await p.getByText(/This builds on/).click({ timeout: 8000 });
+  // Learn mode is on, so the related refresher starts by itself (no click on "This builds on").
   await p.getByPlaceholder("What would happen?").waitFor({ timeout: 8000 });
   await p.getByRole("button", { name: "New", exact: true }).click();
   await p.getByRole("button", { name: /Primary demo/ }).click();
-  await p.getByText(/You practised/).first().waitFor({ timeout: 8000 });
+  await p.getByText(/Connect .* to this task/).first().waitFor({ timeout: 8000 });
 });
 
 await journey("Phone: drawer → chip → goal sheet → answer → peek bar → anchor steps aside → no sideways scroll", async () => {

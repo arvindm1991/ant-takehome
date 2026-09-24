@@ -134,7 +134,9 @@ export function useThreads(opts: UseThreadsOptions = {}) {
 
       opts.onPromptSent?.(threadId, messageId, prompt);
 
+      let settled = false;
       const onEvent = (e: MainEvent) => {
+        if (e.type !== "thinking") settled = true;
         if (e.type === "thinking") {
           update(threadId, (t) => ({
             ...t,
@@ -193,6 +195,9 @@ export function useThreads(opts: UseThreadsOptions = {}) {
             if (raw) onEvent(JSON.parse(raw) as MainEvent);
           }
         }
+        // The connection closed without a result (e.g. the server hit its time limit): end the turn
+        // so the task never hangs and Claude can take the next one.
+        if (!settled) throw new Error("Claude stopped before finishing. Please try again, or try a smaller task.");
       } catch (err) {
         patchTurn(threadId, messageId, {
           status: "error",

@@ -303,7 +303,11 @@ export function useLearn(threads: Thread[], activeThreadId: string) {
         if (nudge) setContextual((c) => ({ ...c, [key(threadId, messageId)]: { ...nudge, dismissed: false } }));
         else if (lb.learnable && learnOnRef.current) start(threadId, messageId, "live");
       } catch {
-        /* learnability is best-effort */
+        // Classifying is best-effort. If it fails, treat the task as learnable so Learn mode never sits idle;
+        // the learning agent finds the topics from Claude's work instead.
+        learnabilityRef.current = { ...learnabilityRef.current, [key(threadId, messageId)]: { learnable: true, topics: [] } };
+        setLearnability(learnabilityRef.current);
+        if (learnOnRef.current) start(threadId, messageId, "live");
       }
     },
     [start],

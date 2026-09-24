@@ -283,8 +283,9 @@ Checked and fine: no model calls run without a user action; the API key never re
 | Smoke | Refresher from the Inbox did nothing when the evidence had no anchors (source lost) | Evidence stores its source message; button disabled when unavailable |
 | D20 | Prediction nudge never fired: the question was asked before the file existed, so it had no anchor | Also match file names mentioned in the question |
 | D20 | *Zoom out* label named one concept but the mock asked about another | Trail labels computed from the same content table as the next question |
-| D20 | With the panel open, a related task auto-started goal cards and hid the interleaving refresher | Refresher offer takes precedence; dismissing it frees the panel |
+| D20 | With the panel open, a related task auto-started goal cards and hid the interleaving refresher | Refresher goes first and, with Learn mode on, starts by itself; "Pick another goal" leads to goal cards |
 | D20 | Toolbar clipped "Ask" at panel width | Two rows (later removed in D21) |
+| D21 | With Learn mode on, a task with a related past topic left the panel on "Learn mode is on." (the refresher offer waited for a click); a slow main agent run hit the 300 s server limit and the task never ended | The related refresher starts by itself; a failed topic check still starts the agent; the main agent is lighter (low effort, ≤3 small files, faster reveal) and a run that ends without a result now ends the turn with an error |
 | Smoke | JWT lab verdict depended on timing when the payload was untouched | Timestamps fixed at load; explicit "nothing changed yet" state |
 
 ## 9. Results log (live)

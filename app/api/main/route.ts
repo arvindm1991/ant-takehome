@@ -10,6 +10,7 @@ import { guard } from "@/lib/rateLimit";
 import { clip, publicError, readJson, UserFacingError } from "@/lib/api";
 
 export const maxDuration = 300;
+const MAIN_DEADLINE_MS = 270_000;
 
 const encoder = new TextEncoder();
 const line = (e: MainEvent) => encoder.encode(JSON.stringify(e) + "\n");
@@ -63,7 +64,7 @@ async function streamMock(input: MainRequestInput, send: (e: MainEvent) => void)
   if (mock.result.complexity === "task") {
     for (const chunk of mock.thinking) {
       send({ type: "thinking", text: chunk });
-      await sleep(900);
+      await sleep(400);
     }
   }
   send({ type: "result", result: mock.result, simulated: true });
@@ -88,7 +89,7 @@ async function streamReal(input: MainRequestInput, send: (e: MainEvent) => void)
   const base = buildMainRequest(input);
   const params = {
     ...base,
-    output_config: { effort: "medium" as const, format: betaZodOutputFormat(MainResultSchema) },
+    output_config: { effort: "low" as const, format: betaZodOutputFormat(MainResultSchema) },
     // Server-side refusal fallbacks; set MAIN_FALLBACKS=off to disable.
     ...(process.env.MAIN_FALLBACKS === "off"
       ? {}
@@ -96,12 +97,26 @@ async function streamReal(input: MainRequestInput, send: (e: MainEvent) => void)
   };
 
   const stream = client.beta.messages.stream(params);
-  for await (const event of stream) {
-    if (event.type === "content_block_delta" && event.delta.type === "thinking_delta") {
-      send({ type: "thinking", text: event.delta.thinking });
+  // Stop well before the platform's time limit so the user gets a clear error, not a hung task.
+  let timedOut = false;
+  const deadline = setTimeout(() => {
+    timedOut = true;
+    stream.abort();
+  }, MAIN_DEADLINE_MS);
+  let final;
+  try {
+    for await (const event of stream) {
+      if (event.type === "content_block_delta" && event.delta.type === "thinking_delta") {
+        send({ type: "thinking", text: event.delta.thinking });
+      }
     }
+    final = await stream.finalMessage();
+  } catch (err) {
+    if (timedOut) throw new UserFacingError("Claude took too long on this one. Try a smaller task.");
+    throw err;
+  } finally {
+    clearTimeout(deadline);
   }
-  const final = await stream.finalMessage();
   if (final.stop_reason === "refusal") throw new UserFacingError("Claude declined this request.");
   if (final.stop_reason === "max_tokens") throw new UserFacingError("The response was too long and got cut off. Try a smaller task.");
 

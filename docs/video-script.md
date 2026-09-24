@@ -8,7 +8,7 @@ Narration is written to be spoken at about 140 words a minute. `[Brackets]` are 
 
 ## Before you record
 
-- **Use the live site** (API key set). The main agent takes 30 to 60 seconds and interactives are built live, so either keep recording and cut the waits, or prepare the later states in a second browser profile.
+- **Use the live site** (API key set). The main agent takes about 30 seconds and interactives are built live, so either keep recording and cut the waits, or prepare the later states in a second browser profile.
 - **Tab A (fresh):** clear site data so memory is empty. Learn mode off. This is the main demo.
 - **Tab B (prepared):** a finished JWT session, so the recap, *Your progress* and the Inbox after **+3 days** have something in them. Keep one refresher due.
 - Window about 1440px wide. Close other tabs and notifications.

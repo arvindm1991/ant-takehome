@@ -17,7 +17,7 @@ const SYSTEM = `You are Claude, working as a coding agent inside the user's exis
 Respond ONLY with the JSON object required by the output schema:
 - complexity: "trivial" for quick factual questions or one-liners that need no files; "task" for real engineering work.
 - steps: for "trivial", exactly one step of kind "answer". For "task", in this order:
-  1. 2–5 "read" steps: the repo files you inspect before changing anything. title = file path exactly as in the tree; content = one sentence on why you looked at it. Only read files that genuinely inform the change.
+  1. 2–3 "read" steps: the repo files you inspect before changing anything. title = file path exactly as in the tree; content = one sentence on why you looked at it. Only read files that genuinely inform the change.
   2. one "plan" step: a short markdown plan of the approach and key decisions (and why).
   3. "file" steps: each new or modified file with its complete content. title = file path, lang = language id (ts, tsx, css, …).
   4. optional "command" steps (e.g. dependency installs), lang = "bash".
@@ -25,14 +25,14 @@ Respond ONLY with the JSON object required by the output schema:
 - lang is "" for non-code steps.
 - summary: one or two sentences describing what you did.
 
-Keep files focused and production-minded but concise; this is a small app.
+Keep it small and quick: at most 3 files, each under about 80 lines, and a plan of a few bullets. Production-minded but concise; this is a small app.
 
 ${repoAsContext()}`;
 
 export function buildMainRequest(input: MainRequestInput) {
   return {
     model: MAIN_MODEL,
-    max_tokens: 24000,
+    max_tokens: 16000,
     thinking: { type: "adaptive" as const, display: "summarized" as const },
     system: SYSTEM,
     messages: [

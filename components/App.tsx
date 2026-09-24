@@ -94,14 +94,17 @@ export function App() {
     if (!turn) return null;
     const lb = learn.learnability(active.id, turn.messageId);
     if (!lb?.learnable || learnedHere(turn.messageId)) return null;
-    // An offered refresher for this task takes precedence; dismissing it frees the panel for goal cards.
+    // An offered refresher for this task goes first: with Learn mode on it starts by itself, and
+    // "Pick another goal" still leads to goal cards for the task.
     const nudge = learn.contextual(active.id, turn.messageId);
-    if (nudge && !nudge.dismissed) return null;
-    return { messageId: turn.messageId, trigger: turn.status === "done" ? ("post_task" as const) : ("live" as const) };
+    const contextual = !!nudge && !nudge.dismissed;
+    return { messageId: turn.messageId, trigger: turn.status === "done" ? ("post_task" as const) : ("live" as const), contextual };
   })();
 
   // Learn mode on ⇒ the learning agent is on: it starts on each new learnable task in view without waiting
   // for a click, and follows the conversation to the newest task. An active refresher is left to finish.
+  const startFor = (c: NonNullable<typeof canStart>) =>
+    c.contextual ? learn.acceptContextual(active.id, c.messageId) : learn.start(active.id, c.messageId, c.trigger);
   const followsTask = !session || (session.messageId !== canStart?.messageId && (session.ended || session.trigger === "live" || session.trigger === "post_task"));
   const autoStart = learn.panelOpen && canStart && followsTask ? canStart : null;
   const autoKey = autoStart ? `${active.id}:${autoStart.messageId}` : null;
@@ -109,7 +112,8 @@ export function App() {
   useEffect(() => {
     if (!autoStart || !autoKey || autoStarted.current === autoKey) return;
     autoStarted.current = autoKey;
-    learn.start(active.id, autoStart.messageId, autoStart.trigger);
+    if (autoStart.contextual) learn.acceptContextual(active.id, autoStart.messageId);
+    else learn.start(active.id, autoStart.messageId, autoStart.trigger);
   }, [autoKey, autoStart, active.id, learn]);
 
   const toggleLearn = () => {
@@ -117,7 +121,7 @@ export function App() {
     learn.setPanelOpen(true);
     setTab("session");
     openSheet();
-    if (canStart && followsTask) learn.start(active.id, canStart.messageId, canStart.trigger);
+    if (canStart && followsTask) startFor(canStart);
   };
 
   // Learn suggestions in Claude's thread can be waved away; once dismissed they stay gone for that task.

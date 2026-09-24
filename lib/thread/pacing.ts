@@ -7,15 +7,15 @@ const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n
 export function revealDelayMs(step: MainStep): number {
   switch (step.kind) {
     case "read":
-      return 1400;
+      return 500;
     case "plan":
-      return 2200;
+      return 800;
     case "file":
-      return clamp(1800 + step.content.length * 1.2, 2200, 6000);
+      return clamp(600 + step.content.length * 0.3, 800, 2000);
     case "command":
-      return 1800;
+      return 600;
     case "note":
-      return 1500;
+      return 500;
     case "answer":
       return 0;
   }
