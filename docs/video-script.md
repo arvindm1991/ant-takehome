@@ -31,6 +31,8 @@ Narration is written to be spoken at about 140 words a minute. `[Brackets]` are 
 > The brief puts it well: when agents do complex work on their own, people become passive observers. Agents are a forklift in the gym and a microwave in the kitchen. The work gets done, but the muscle doesn't grow and the knives go dull. Showing more doesn't fix it; Claude already shows its work, and people skip to the answer.
 >
 > I chose B over A. A is customer education, teaching Claude's features. B is people getting better at their own work, and losing those skills is the bigger risk. It's also personal: I'm an aerospace engineer who built an award-winning edtech company, and I've stayed in education since.
+>
+> Before building, I talked to three developer friends who use Claude every day. I didn't ask if they'd use a learning tool. I asked what they do while the agent builds: all three switch to other work and stop watching. And I asked how they'd feel about being quizzed inside Claude. That, plus nearly a decade in education, shaped what I built.
 
 `[Two-counters image.]`
 
@@ -134,7 +136,7 @@ Narration is written to be spoken at about 140 words a minute. `[Brackets]` are 
 
 ---
 
-**Total narration:** about 940 words, roughly 6 minutes spoken, which leaves about 1.5 minutes for demo actions and cut waits. If you run long, cut the "its own text box" beat (4:00–4:20) first, then trim segment 4 to the diagram only.
+**Total narration:** about 1,010 words, roughly 6 minutes spoken, which leaves about 1.5 minutes for demo actions and cut waits. If you run long, cut the "its own text box" beat (4:00–4:20) first, then trim segment 4 to the diagram only.
 
 ## Checklist against the brief
 
@@ -143,7 +145,7 @@ Narration is written to be spoken at about 140 words a minute. `[Brackets]` are 
 | Screenshare walkthrough of what you built | 3 (demo), plus diagram in 4 |
 | Problem and solution | 1–2, then 3 |
 | Which option and why | 2 |
-| Design and prototyping process | 5 |
+| Design and prototyping process | 2 (talking to daily Claude users), 5 |
 | Enhances rather than replaces agency | 3 (Claude never waits; its own box), 6 |
 | Learning principles | 3 (show first, predict, check), 4 (memory), 6 |
 | How you'd measure success | 6 |
