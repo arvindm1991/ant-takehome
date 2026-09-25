@@ -32,7 +32,7 @@ Narration is written to be spoken at about 140 words a minute. `[Brackets]` are 
 >
 > I chose B over A. A is customer education, teaching Claude's features. B is people getting better at their own work, and losing those skills is the bigger risk. It's also personal: I'm an aerospace engineer who built an award-winning edtech company, and I've stayed in education since.
 >
-> Before building, I talked to three developer friends who use Claude every day. I didn't ask if they'd use a learning tool. I asked what they do while the agent builds: all three switch to other work and stop watching. And I asked how they'd feel about being quizzed inside Claude. That, plus nearly a decade in education, shaped what I built.
+> Before building, I talked to three developer friends who use Claude every day. I didn't ask if they'd use a learning tool. I asked what they do while the agent builds: all three switch to other work and stop watching. And I asked how they'd feel about being quizzed inside Claude. What I learned from them, along with nearly a decade in education, set the direction of the prototype.
 
 `[Two-counters image.]`
 
