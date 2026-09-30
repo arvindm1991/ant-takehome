@@ -13,6 +13,8 @@ Learn Mode puts a **learning sub-agent** inside everyday Claude. While Claude's 
 
 The main agent never knows the learning agent exists, and the task never waits on you.
 
+Separately from Learn mode, when Claude finishes work that wrote files, a **review checklist** opens: what good looks like for that task, which you check yourself (nothing is pre-checked), comment on, and attach to your reply to steer Claude's next turn.
+
 - **Prototype:** https://ant-takehome.vercel.app. Try *Build a login page with JWT auth for this app*, then click "Learn while Claude builds this" and pick a goal card.
 - **Design and decisions:** [`SPEC.md`](SPEC.md) (numbered decision log, journeys, architecture, memory model, metrics)
 - **Test plan:** [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md) (includes the security and cost review) · **Eval strategy:** [`docs/EVAL_STRATEGY.md`](docs/EVAL_STRATEGY.md)
@@ -26,7 +28,7 @@ The header always shows a **PROTOTYPE** chip (click it for what's simulated). If
 | Main agent: streamed reasoning summary + structured output (`claude-opus-5`) | Step pacing: the full result is revealed step by step, as a long agent run would be |
 | Learning agent's teaching decisions (`claude-sonnet-5`, tool use) | The repository: a small fixture app (`lib/repo/acmeNotes.ts`); no files are written |
 | Grader: verdict, misconception tag, where the answer is visible (`claude-sonnet-5`) | Time: a "+3 days" clock in the Inbox to show spaced repetition |
-| Learnability check (`claude-haiku-4-5`), widget builder (`claude-opus-5`) | Learner memory and chats in browser storage (localStorage) |
+| Learnability check (`claude-haiku-4-5`), widget builder (`claude-opus-5`), review checklist (`claude-sonnet-5`) | Learner memory and chats in browser storage (localStorage) |
 
 Without a key, every model call falls back to a scripted mock covering the auth-page demo, through the same code paths.
 
@@ -56,10 +58,12 @@ app/api/learn           learning agent: one decision per event, via teaching too
 app/api/learn/grade     rubric grader
 app/api/learn/classify  learnability + topics + related known topics
 app/api/learn/widget    interactive widget builder (HTML rendered in a sandboxed iframe)
+app/api/review          review checklist writer: "what good looks like" for a finished task
 app/api/status          what's live vs mocked on this deployment
 lib/main                main-agent prompt, schema, mock (never imports lib/learn or lib/memory)
 lib/learn               context assembly, tools, strategy, MCQ cross-check, mocks, widgets, client orchestration
 lib/memory              learner memory: schema, mastery update, review schedule, refreshers, browser store
+lib/review              review checklist: writer, mock, reply formatting, rubber-stamp signal, client state
 lib/thread              thread items with stable ids, pacing, persistence, anchor focus
 lib/api.ts              bounded body parsing, deep clamping, user-safe errors
 lib/rateLimit.ts        per-IP hourly limits, daily caps per bucket

@@ -270,6 +270,14 @@
 </section>
 
 <section>
+  <h2>A second pattern: reviewing Claude's work</h2>
+  <figure class="float-r panel"><img src="img/review-checklist.png" alt="A review checklist card: 'Review Claude's work', six standards for the login task, two checked, one with a comment, and an Attach to reply button"></figure>
+  <p>Education Labs studies AI fluency through the behaviors people show when working with AI, some visible in a conversation and some not. Those behaviors are a good starting point, but it's easy to design to the test. Suggested follow-up questions are an example: picking one looks like iteration, but often the model is choosing where the task goes and the person makes a token choice. What matters is whether the person is steering or just letting the task expand.</p>
+  <p>So I prototyped a pattern that asks for the person's own judgment. When Claude finishes work, a review checklist opens with what good looks like for this task, written from the goal and the files. For the login page: no secrets are hardcoded, passwords use a slow hash, the token is checked for signature and expiry, the login screen fits the app. Nothing is pre-checked and nothing says whether Claude passed. You tick items as you check them, comment on any of them, and attach the checklist to your reply, so what you found steers Claude's next turn. It can be minimized or closed.</p>
+  <p>It prompts review of the work like nothing else does, and it shows the difference between reviewing and rubber-stamping: everything ticked in a few seconds with no comments reads as a token choice. It's separate from Learn mode, and we'd A/B test it against suggested follow-ups and against nothing.</p>
+</section>
+
+<section>
   <div class="keep-block">
   <h2>What we'd test, and what comes next</h2>
   <p>The prototype is a starting point, not a final answer. These are the questions we'd settle with A/B tests, each judged on the main measure (first-try refresher accuracy days later) with the same guardrails: tasks take no longer, people are no less happy with them, and switch-off and dismissal rates stay low.</p>

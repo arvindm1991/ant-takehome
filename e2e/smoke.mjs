@@ -24,6 +24,7 @@ async function page(device) {
 }
 
 async function journey(name, fn) {
+  if (process.env.ONLY && !name.includes(process.env.ONLY)) return; // e.g. ONLY=Layout
   try {
     await fn();
     console.log(`✓ ${name}`);
@@ -106,12 +107,46 @@ await journey("J2 post-task: completion chip → goal cards → explain-back", a
   await p.getByPlaceholder("Explain it in your own words…").waitFor({ timeout: 8000 });
 });
 
-await journey("J4 quick question: instant answer, no learn chip", async () => {
+await journey("J4 quick question: instant answer, no learn chip, no review checklist", async () => {
   const p = await page();
   await p.getByRole("button", { name: /Quick question/ }).click();
   await p.getByText("Paris").waitFor();
   await p.waitForTimeout(1500);
   if ((await p.getByText(/Learn while Claude builds|understand it before you review/).count()) !== 0) throw new Error("chip shown for a trivial ask");
+  if (await p.getByRole("dialog", { name: "Review checklist" }).count()) throw new Error("review checklist shown for a quick answer");
+});
+
+await journey("Review checklist: task done → unchecked checklist → check + comment → minimize/close/reopen → attach → sent with reply", async () => {
+  const p = await page();
+  await p.getByRole("button", { name: /Primary demo/ }).click();
+  const dialog = p.getByRole("dialog", { name: "Review checklist" });
+  await dialog.waitFor({ timeout: 60000 });
+  const boxes = dialog.getByRole("checkbox");
+  await boxes.first().waitFor({ timeout: 10000 });
+  const n = await boxes.count();
+  if (n < 4) throw new Error(`only ${n} checklist items`);
+  for (let i = 0; i < n; i++) if ((await boxes.nth(i).getAttribute("aria-checked")) !== "false") throw new Error("an item came pre-checked");
+  await boxes.nth(0).click();
+  await boxes.nth(2).click();
+  await dialog.getByRole("button", { name: /^Comment on:/ }).nth(1).click();
+  await p.keyboard.type("Where is exp checked?");
+  await p.keyboard.press("Enter");
+  await dialog.getByText("2 of " + n + " checked").waitFor();
+  // Minimize to a pill, reopen; close, reopen from under the task. State survives.
+  await dialog.getByRole("button", { name: "Minimize review checklist" }).click();
+  await p.getByRole("button", { name: /Review checklist · 2\// }).click();
+  await dialog.getByRole("button", { name: "Close review checklist" }).click();
+  if (await dialog.count()) throw new Error("checklist didn't close");
+  await p.getByRole("button", { name: /^Review checklist · 2\// }).click();
+  await dialog.getByText("Where is exp checked?").waitFor();
+  // Attach to the reply and send it.
+  await dialog.getByRole("button", { name: /Attach to reply/ }).click();
+  await p.getByText(/2 of \d checked · 1 comment/).waitFor();
+  await p.getByPlaceholder(/Add a note for Claude/).fill("A couple of things to fix");
+  await p.getByRole("button", { name: "Send" }).click();
+  await p.getByText(/Review checklist · 2 of \d checked/).waitFor({ timeout: 5000 });
+  await p.getByText("“Where is exp checked?”").waitFor();
+  await p.getByRole("button", { name: /Review checklist sent/ }).waitFor();
 });
 
 await journey("Suggestions in Claude's thread can be dismissed and stay dismissed for that task", async () => {

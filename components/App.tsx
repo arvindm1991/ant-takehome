@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Composer, SuggestionList } from "@/components/Composer";
 import { LearnPanel, LearnPeek, LearnRail } from "@/components/learn/LearnPanel";
 import { ResizeHandle } from "@/components/ResizeHandle";
@@ -16,6 +16,12 @@ import { dueRefreshers, estimateOf, normalizeTopicId, type Refresher } from "@/l
 import type { Learnability } from "@/lib/learn/types";
 import { THREAD_FOCUS_EVENT } from "@/lib/thread/focus";
 import { useMediaQuery, useWidePanel } from "@/lib/useMediaQuery";
+import { useReview } from "@/lib/review/useReview";
+import { composeReply } from "@/lib/review/format";
+import type { ReviewRequest } from "@/lib/review/types";
+import type { Thread } from "@/lib/thread/types";
+import { focusThreadItem } from "@/lib/thread/focus";
+import { ReviewChecklist, ReviewPill, ReviewReopen } from "@/components/review/ReviewChecklist";
 
 const PANEL_DEFAULT = 440;
 const PANEL_MIN = 360;
@@ -43,6 +49,7 @@ export function App() {
     onPromptSent: (t, m, p) => onPromptSent.current?.(t, m, p),
   });
   const learn = useLearn(threads, activeId);
+  const review = useReview();
   const status = useDeployStatus();
   const memory = useMemory();
   // SPEC §11: suggest learning only if some topic isn't mastered yet.
@@ -87,6 +94,41 @@ export function App() {
   const busy = active.turns.some((t) => t.status === "thinking" || t.status === "revealing");
   const empty = active.items.length === 0;
   const session = learn.session;
+
+  // Review checklist: when Claude finishes work that produced files, the user gets "what good looks like"
+  // for that task to check themselves. It's written while the steps are still being revealed.
+  const { create: createReview } = review;
+  useEffect(() => {
+    for (const t of threads)
+      for (const turn of t.turns) {
+        if (turn.status !== "revealing" || turn.complexity !== "task" || review.get(t.id, turn.messageId)) continue;
+        const input = reviewInput(t, turn.messageId);
+        if (input.files.length) createReview(t.id, turn.messageId, input);
+      }
+  }, [threads, review, createReview]);
+  const lastTurn = active.turns.at(-1);
+  const lastList = lastTurn?.status === "done" ? review.get(active.id, lastTurn.messageId) : undefined;
+  const openList = lastList?.view === "open" ? lastList : active.turns.map((t) => review.get(active.id, t.messageId)).find((c) => c?.view === "open" && c.messageId !== lastTurn?.messageId);
+  const attachedList = review.attachedIn(active.id);
+  const [reviewInset, setReviewInset] = useState(0);
+  const measureReview = useRef<ResizeObserver | null>(null);
+  const reviewCardRef = useCallback((el: HTMLDivElement | null) => {
+    measureReview.current?.disconnect();
+    if (!el) return setReviewInset(0);
+    measureReview.current = new ResizeObserver(() => setReviewInset(el.offsetHeight + 8));
+    measureReview.current.observe(el);
+  }, []);
+  const reply = (text: string) => {
+    if (attachedList) {
+      send(composeReply(text, attachedList.items));
+      review.markSent(attachedList.threadId, attachedList.messageId);
+    } else send(text);
+    review.closeIn(active.id);
+  };
+  const lookAt = (messageId: string, path: string) => {
+    const item = active.items.find((i) => i.messageId === messageId && i.kind === "file" && i.title === path);
+    if (item) focusThreadItem(item.id);
+  };
 
   // Latest learnable turn in this thread without a learning session yet.
   const canStart = (() => {
@@ -165,17 +207,24 @@ export function App() {
       );
     },
     afterTurn: (messageId) => {
+      const list = review.get(active.id, messageId);
+      const reopen = list?.view === "closed" && (
+        <ReviewReopen list={list} onOpen={() => review.setView(active.id, messageId, "open")} />
+      );
       const lb = learn.learnability(active.id, messageId);
       const turn = active.turns.find((t) => t.messageId === messageId);
-      if (!worthSuggesting(lb) || turn?.status !== "done" || session?.messageId === messageId || learn.contextual(active.id, messageId) || dismissedChips.has(chipKey(messageId))) return null;
+      if (!worthSuggesting(lb) || turn?.status !== "done" || session?.messageId === messageId || learn.contextual(active.id, messageId) || dismissedChips.has(chipKey(messageId))) return reopen || null;
       return (
-        <PostTaskLearnChip
-          onClick={() => {
-            openSheet();
-            learn.start(active.id, messageId, "post_task");
-          }}
-          onDismiss={() => dismissChip(messageId)}
-        />
+        <>
+          {reopen}
+          <PostTaskLearnChip
+            onClick={() => {
+              openSheet();
+              learn.start(active.id, messageId, "post_task");
+            }}
+            onDismiss={() => dismissChip(messageId)}
+          />
+        </>
       );
     },
   };
@@ -252,10 +301,43 @@ export function App() {
           </div>
         ) : (
           <>
-            <ThreadView thread={active} slots={slots} className="relative min-h-0 flex-1 overflow-y-auto pt-14" />
-            <div className="mx-auto w-full max-w-3xl px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
+            <ThreadView thread={active} slots={slots} bottomInset={openList ? reviewInset : 0} className="relative min-h-0 flex-1 overflow-y-auto pt-14 [overflow-anchor:none]" />
+            <div className="relative mx-auto w-full max-w-3xl px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
+              {openList && (
+                <div ref={reviewCardRef} className="absolute right-3 bottom-full left-3 z-20 mb-2 flex justify-end sm:left-auto sm:right-6">
+                  <ReviewChecklist
+                    key={openList.messageId}
+                    list={openList}
+                    onToggle={(id) => review.toggle(active.id, openList.messageId, id)}
+                    onComment={(id, text) => review.comment(active.id, openList.messageId, id, text)}
+                    onMinimize={() => review.setView(active.id, openList.messageId, "min")}
+                    onClose={() => review.setView(active.id, openList.messageId, "closed")}
+                    onAttach={() => review.attach(active.id, openList.messageId, true)}
+                    onRetry={() => review.retry(active.id, openList.messageId, reviewInput(active, openList.messageId))}
+                    onLook={(path) => lookAt(openList.messageId, path)}
+                  />
+                </div>
+              )}
+              {lastList?.view === "min" && !lastList.attached && (
+                <div className="mb-2 flex justify-end">
+                  <ReviewPill list={lastList} onOpen={() => review.setView(active.id, lastList.messageId, "open")} />
+                </div>
+              )}
               {peek}
-              <Composer onSend={send} disabled={busy} variant="docked" />
+              <Composer
+                onSend={reply}
+                disabled={busy}
+                variant="docked"
+                attachment={
+                  attachedList
+                    ? {
+                        label: "Review checklist",
+                        detail: reviewDetail(attachedList.items),
+                        onRemove: () => review.attach(active.id, attachedList.messageId, false),
+                      }
+                    : null
+                }
+              />
             </div>
           </>
         )}
@@ -319,6 +401,23 @@ export function App() {
       />
     );
   }
+}
+
+/** What a review checklist is written from: the user's goal and the work Claude produced for it. */
+function reviewInput(thread: Thread, messageId: string): ReviewRequest {
+  const turn = thread.turns.find((t) => t.messageId === messageId);
+  const items = thread.items.filter((i) => i.messageId === messageId);
+  return {
+    prompt: thread.items.find((i) => i.messageId === messageId.replace("m", "u"))?.content ?? "",
+    summary: turn?.summary ?? "",
+    plan: items.find((i) => i.kind === "plan")?.content ?? "",
+    files: items.filter((i) => i.kind === "file").map((i) => ({ path: i.title, content: i.content })),
+  };
+}
+
+function reviewDetail(items: { checked: boolean; comment: string }[]) {
+  const comments = items.filter((i) => i.comment.trim()).length;
+  return `${items.filter((i) => i.checked).length} of ${items.length} checked${comments ? ` · ${comments} comment${comments > 1 ? "s" : ""}` : ""}`;
 }
 
 /** Generic 8-point spark: a nod to the reference, not the Claude logo. */

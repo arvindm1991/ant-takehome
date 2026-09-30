@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { ArrowUp, Code2, Database, Folder, Gauge, Globe, KeyRound, Mic, Plus, Search } from "lucide-react";
+import { ArrowUp, Code2, Database, Folder, Gauge, Globe, KeyRound, ListChecks, Mic, Plus, Search, X } from "lucide-react";
 import { ACME_NOTES, REPO_NAME } from "@/lib/repo/acmeNotes";
 
 // SPEC §12. Only #1 is tuned end to end (D17).
@@ -12,16 +12,19 @@ export const SUGGESTED_TASKS = [
   { text: "What's the capital of France?", icon: Globe, tag: "Quick question" },
 ];
 
-type Props = { onSend: (text: string) => void; disabled: boolean; variant: "hero" | "docked" };
+/** Something riding along with the next message (e.g. a filled review checklist). */
+export type ComposerAttachment = { label: string; detail: string; onRemove: () => void };
 
-export function Composer({ onSend, disabled, variant }: Props) {
+type Props = { onSend: (text: string) => void; disabled: boolean; variant: "hero" | "docked"; attachment?: ComposerAttachment | null };
+
+export function Composer({ onSend, disabled, variant, attachment }: Props) {
   const [text, setText] = useState("");
   const [focused, setFocused] = useState(false);
   const [showRepo, setShowRepo] = useState(false);
 
   const submit = (value: string) => {
     const v = value.trim();
-    if (!v || disabled) return;
+    if ((!v && !attachment) || disabled) return;
     onSend(v);
     setText("");
     setFocused(false);
@@ -43,6 +46,17 @@ export function Composer({ onSend, disabled, variant }: Props) {
         }}
         className="rounded-[20px] border border-border bg-surface px-4 pt-3.5 pb-3 shadow-sm focus-within:border-muted/60"
       >
+        {attachment && (
+          <div className="mb-2 flex w-fit max-w-full items-center gap-2 rounded-lg border border-border bg-bg/60 py-1.5 pr-1.5 pl-2.5 text-[13px]">
+            <ListChecks size={15} className="shrink-0 text-accent" />
+            <span className="min-w-0 truncate">
+              <span className="font-medium">{attachment.label}</span> <span className="text-muted">· {attachment.detail}</span>
+            </span>
+            <button type="button" aria-label={`Remove ${attachment.label}`} onClick={attachment.onRemove} className="rounded p-0.5 text-muted hover:bg-raised hover:text-text">
+              <X size={14} />
+            </button>
+          </div>
+        )}
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -56,7 +70,7 @@ export function Composer({ onSend, disabled, variant }: Props) {
             }
           }}
           rows={variant === "hero" ? 2 : 1}
-          placeholder={disabled ? "Claude is working…" : variant === "hero" ? "How can I help you today?" : "Reply to Claude…"}
+          placeholder={disabled ? "Claude is working…" : variant === "hero" ? "How can I help you today?" : attachment ? "Add a note for Claude, or just send…" : "Reply to Claude…"}
           className="w-full resize-none bg-transparent px-1 text-[16px] outline-none placeholder:text-muted"
         />
         <div className="mt-2 flex items-center gap-2">
@@ -73,7 +87,7 @@ export function Composer({ onSend, disabled, variant }: Props) {
           <Mic size={17} strokeWidth={1.75} className="mx-1 hidden text-text/80 sm:block" />
           <button
             type="submit"
-            disabled={disabled || !text.trim()}
+            disabled={disabled || (!text.trim() && !attachment)}
             aria-label="Send"
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white disabled:opacity-35"
           >

@@ -6,6 +6,8 @@ import { PrototypeNote } from "./PrototypeNote";
 import { THREAD_FOCUS_EVENT } from "@/lib/thread/focus";
 import { useFollowScroll } from "@/lib/useFollowScroll";
 import { JumpToLatest } from "./JumpToLatest";
+import { splitReply } from "@/lib/review/format";
+import { SentReview } from "./review/ReviewChecklist";
 
 export type ThreadSlots = {
   /** Rendered under a user prompt (e.g. the learn-mode chip). */
@@ -14,7 +16,7 @@ export type ThreadSlots = {
   afterTurn?: (messageId: string) => React.ReactNode;
 };
 
-export function ThreadView({ thread, slots, className }: { thread: Thread; slots?: ThreadSlots; className?: string }) {
+export function ThreadView({ thread, slots, className, bottomInset = 0 }: { thread: Thread; slots?: ThreadSlots; className?: string; bottomInset?: number }) {
   const { ref: scrollRef, following, paused, resume, pause, scrollToBottom } = useFollowScroll();
   const revealedCount = thread.items.filter((i) => i.revealed).length;
   const lastReasoningLen = thread.items.findLast((i) => i.kind === "reasoning")?.content.length ?? 0;
@@ -34,7 +36,7 @@ export function ThreadView({ thread, slots, className }: { thread: Thread; slots
       resume();
     }
     if (following()) scrollToBottom();
-  }, [revealedCount, lastReasoningLen, turns, following, resume, scrollToBottom]);
+  }, [revealedCount, lastReasoningLen, turns, bottomInset, following, resume, scrollToBottom]);
 
   const prompts = thread.items.filter((i) => i.kind === "user_prompt");
 
@@ -48,7 +50,7 @@ export function ThreadView({ thread, slots, className }: { thread: Thread; slots
           return (
             <div key={p.id} className="flex flex-col gap-3">
               <Item item={p}>
-                <div className="ml-auto max-w-[85%] rounded-2xl bg-raised px-4 py-2.5 text-[15.5px]">{p.content}</div>
+                <UserPrompt content={p.content} />
               </Item>
               {slots?.afterPrompt?.(messageId)}
               {turn && <AssistantBlock turn={turn} items={items} />}
@@ -56,6 +58,8 @@ export function ThreadView({ thread, slots, className }: { thread: Thread; slots
             </div>
           );
         })}
+        {/* Room for a card floating over the bottom of the thread (the review checklist), so nothing hides under it. */}
+        {bottomInset > 0 && <div aria-hidden style={{ height: bottomInset }} />}
       </div>
       {paused && (
         <JumpToLatest
@@ -65,6 +69,16 @@ export function ThreadView({ thread, slots, className }: { thread: Thread; slots
           }}
         />
       )}
+    </div>
+  );
+}
+
+function UserPrompt({ content }: { content: string }) {
+  const { text, review } = splitReply(content);
+  return (
+    <div className="ml-auto max-w-[85%] rounded-2xl bg-raised px-4 py-2.5 text-[15.5px]">
+      {text}
+      {review && <SentReview review={review} />}
     </div>
   );
 }

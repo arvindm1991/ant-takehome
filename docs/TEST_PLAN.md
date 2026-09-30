@@ -38,6 +38,8 @@ Mode: **M** = mock (deterministic) · **L** = live · **M/L** = both.
 | A5 | J3 refreshers (see section I) | — | M/L | P0 | smoke |
 | A6 | Toggle off mid-session, then back on | Panel closes and reopens with the same session; no duplicate session | M | P1 | — |
 | A7 | Close the panel mid-question, keep working | Main agent unaffected; session resumes when reopened | M | P2 | — |
+| A8 | Review checklist (D22): finish a task that writes files | Card opens when the task is done with 4–6 unchecked, task-specific standards; check two, comment on one; minimize → pill, close → reopen from under the task with state kept; *Attach to reply* → composer chip → send; the sent message shows the checklist and Claude replies to it. Quick answers get no checklist | M/L | P0 | smoke |
+| A9 | Checklist quality (live) | Items are standards, not verdicts ("No secrets are hardcoded…", never "Claude used env vars"); specific to the task; file links point at files Claude wrote; no pass/fail hints | L | P1 | — |
 
 ### B. Honesty and labelling (what's real vs simulated)
 
@@ -220,7 +222,7 @@ Mode: **M** = mock (deterministic) · **L** = live · **M/L** = both.
 | P9 | One text box | With a free-text question open it answers ("Answering: …", *Check my answer*); otherwise it asks; a draft started in one mode stays in it when a question arrives; "add a logout button" gets a redirect to Claude's chat | M/L | P0 | smoke |
 | P10 | Identity | Called *Learn mode* everywhere; palette, avatar and serif voice clearly different from the main thread; nobody in a hallway test calls it "the other Claude" | M | P1 | — |
 | P12 | Learn mode on ⇒ learning agent on | With the switch on, each new learnable task starts a session without a chip click; a new task in the same chat moves learning to it; an active refresher is not interrupted | M/L | P0 | smoke |
-| P11 | Refresher precedence | With the panel open, a related new task shows the refresher chip rather than auto-starting goal cards | M | P1 | smoke |
+| P11 | Refresher precedence | With the panel open, a related new task starts the refresher by itself; *Pick another goal* leads to goal cards | M | P1 | smoke |
 
 ## 4. Live-session rubric (score 0–2 each; one row per session in §7)
 

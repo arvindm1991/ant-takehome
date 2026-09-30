@@ -54,6 +54,7 @@ A **learning sub-agent** that rides alongside Claude's main agent in regular Cla
 | D19 | **Per-IP rate limits, daily caps (total and per Opus bucket), bounded inputs, server-side strategy, data-not-instructions prompts** on every model-calling route (live mode); in-memory for the prototype | The public demo URL exposes paid model calls; production would use a shared store (e.g. Redis) and auth |
 | D20 | **The learning panel is a guided path, not a blank chat box.** Goal cards replace the blank slate; every turn ends with 2–3 next moves; the panel has its own visual identity. *(First version also had a four-button toolbar and a secondary Ask field; replaced by D21.)* | Testing the live build: a blank input reads as a second Claude. It is unclear what to ask, and task requests can land in the wrong box (`docs/EVAL_STRATEGY.md` suite 12 measures this). |
 | D21 | **Show, don't tell; one text box; learn mode on = learning agent on.** (a) The learning agent prefers **interactives** (a token visualizer/decoder, a tamper lab, a cost slider) over prose and plain questions, especially when explaining; the JWT goal opens with a visualizer. *See how it works* is guaranteed: the server sets `tool_choice` to `demonstrate` for that turn (possible because the learning agent's call doesn't use extended thinking); elsewhere it's a prompt preference. (b) The toolbar is gone: the panel has **one text box of its own** (indigo, serif, cap icon) that answers the open question or, when none is open, asks about Claude's work; context-specific next moves sit above it as chips. (c) Goal cards are unnumbered. (d) Turning learn mode on starts the learning agent on every new learnable task, with no chip click, and follows the conversation to the newest task. (e) The panel is called **Learn mode**, the same name as the switch; "Mentor" suggested a person and a second voice | Live testing: the toolbar buttons had no context ("Explain" what?), goal numbers and a quiet panel felt like homework, and an agent that was deliberately switched on should be proactive. Interactives are the most engaging way to see a mechanism and are hard to get from a plain chat. |
+| D22 | **Review checklist after work is produced.** When Claude finishes a task that wrote files, a card opens over the bottom of the thread: *Review Claude's work*, 4–6 standards for what good looks like for this task, written from the goal and the files. Nothing is pre-checked; each item has a comment button and, where it applies, the file to look at; *Attach to reply* puts the filled checklist into Claude's composer. It can be minimized to a pill or closed and reopened from under the task. Separate from Learn mode: it's about the work, not the learner, and shows whether or not Learn mode is on. | Research on AI fluency looks at behaviors like checking the work, and it's easy to design to the test. Auto-suggested follow-ups can look like iteration while the model is really choosing the direction and the user makes a token pick. A checklist the user fills in by hand asks for their judgment on the actual work, and what they attach steers Claude's next turn. A card that doesn't block the thread keeps the work in view while it's checked. |
 | D17 | **Prototype polish focuses on one journey: the auth page.** Other suggested tasks work but aren't tuned | The brief asks for depth on one interaction pattern. The design is general; the demo is specific. |
 
 ## 5. User journeys
@@ -168,6 +169,7 @@ type ThreadItem = {
 | Widget builder | `claude-opus-5` | Generates `demonstrate` HTML from the LSA's widget spec (D16). |
 | Grader | `claude-sonnet-5` | Structured output, rubric-based. |
 | Learnability / pacing classifier | `claude-haiku-4-5` | Single short call; can be merged into the MA call if latency allows. |
+| Review checklist writer | `claude-sonnet-5` | One short structured call per finished task that produced files (D22). |
 
 ## 8. Main agent (MA)
 
@@ -329,6 +331,15 @@ Guardrails: at most **one** inline nudge per task, always dismissible. Three con
 - **Copy rules:** frame as a level-up ("Go deeper: refresh-token rotation"). Never recommend topics already mastered.
 - **Experiment arms (documented, one shipped):** a persistent top-bar toggle vs inline chips only vs a mode in the model/mode selector. In the prototype, both toggle and chips are on, with `?arm=` query param support if time allows.
 
+### 11.1 Review checklist (D22)
+
+- **When:** a main-agent turn of complexity `task` that produced at least one file. It is written while the steps are still being revealed (from the prompt, summary, plan and files, never the learner model) and opens when the turn is done. Quick answers get none.
+- **Writer:** `REVIEW_MODEL` (default `claude-sonnet-5`), structured output `{items: [{text, lookAt}]}`, 3–6 items. Items are **standards, not verdicts**: they never say whether the work meets them or describe what the agent did. `lookAt` must be one of the task's file paths (else dropped). Scripted fallback per suggested task.
+- **Card:** title *Review Claude's work*; manual checkboxes; comment icon per item (inline text field, Enter to save); file link scrolls to that step in the thread; footer "k of n checked" and *Attach to reply*. Minimize → pill above the composer ("Review checklist · k/n"); close → a "Review checklist" link under the task reopens it. The thread gets bottom room equal to the card's height so nothing hides under it.
+- **Attach to reply:** a chip in Claude's composer ("Review checklist · k of n checked · c comments", removable). Sending appends the checklist as markdown checkboxes with comments to the user's message (a default note if they typed none); the sent bubble renders it as a compact list. Claude sees it as ordinary user text, so isolation (§7.1) is unchanged.
+- **Rubber-stamp signal (for research, never shown):** everything checked within ~2 s per item of opening, with no comments. `reviewSignals()` in `lib/review/format.ts`.
+- **What we'd compare:** checklist vs model-suggested follow-ups vs nothing, on whether the next turn steers (names a specific change) or expands (picks a suggestion), and on later rework.
+
 ## 12. Suggested tasks (input focus)
 
 1. **Build a login page with JWT auth for my Next.js app** *(primary demo)*
@@ -343,7 +354,7 @@ Only #1 is tuned and pre-tested end to end (D17). The others run through the sam
 
 Events go to an in-app event log (a debug drawer, plus `console`). A real build would send them to the analytics pipeline.
 
-`learn_chip_shown / _clicked / _dismissed {placement, arm}` · `learn_toggle_changed {on, source}` · `objective_suggested / _selected {kind, solid}` · `move_chosen {move}` · `widget_shown / _engaged {spec}` · `nudge_shown / _acted / _deferred {kind}` · `ask_submitted {misrouted}` · `probe_shown / _answered / _ignored {mode, topicId}` · `grade {verdict, hinted}` · `tool_rendered / tool_engaged {tool}` · `anchor_clicked` · `widget_interacted` · `refresher_shown / _opened {trigger}` · `badge_opened` · `session_started / _ended {trigger, durationMs, probes, correct}` · `time_skipped`
+`learn_chip_shown / _clicked / _dismissed {placement, arm}` · `learn_toggle_changed {on, source}` · `objective_suggested / _selected {kind, solid}` · `move_chosen {move}` · `widget_shown / _engaged {spec}` · `nudge_shown / _acted / _deferred {kind}` · `ask_submitted {misrouted}` · `probe_shown / _answered / _ignored {mode, topicId}` · `grade {verdict, hinted}` · `tool_rendered / tool_engaged {tool}` · `anchor_clicked` · `widget_interacted` · `refresher_shown / _opened {trigger}` · `badge_opened` · `session_started / _ended {trigger, durationMs, probes, correct}` · `time_skipped` · `review_shown / _item_checked / _commented / _minimized / _closed / _attached / _sent {checked, total, comments, secondsToFinish, rubberStamp}`
 
 ## 14. Evals (QA for LSA behavior)
 
