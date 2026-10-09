@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MainEvent, MainStep } from "@/lib/main/schema";
+import type { MainEvent, MainResult, MainStep } from "@/lib/main/schema";
 import type { MainHistoryMessage } from "@/lib/main/request";
 import { revealDelayMs } from "./pacing";
 import { itemId, shortId, type AssistantTurn, type Thread, type ThreadItem } from "./types";
@@ -209,6 +209,46 @@ export function useThreads(opts: UseThreadsOptions = {}) {
     [active, update, patchTurn, opts.onPromptSent],
   );
 
+  /**
+   * Showcase shortcut: open a new chat with a finished agent run already mostly on screen, and reveal
+   * the last `remaining` steps at the usual pace. Nothing is sent to the main agent.
+   */
+  const replay = useCallback(
+    (prompt: string, thinking: string, result: MainResult, remaining: number) => {
+      const t = newThread();
+      const threadId = t.id;
+      const now = Date.now();
+      const keep = Math.max(0, result.steps.length - remaining);
+      const base = { threadId, revealed: true, revealedAt: now };
+      const steps: ThreadItem[] = result.steps.map((s, idx) => ({
+        ...base,
+        id: itemId(threadId, "m1", idx + 1),
+        messageId: "m1",
+        kind: s.kind,
+        title: s.title,
+        content: s.content,
+        lang: s.lang || undefined,
+        revealed: idx < keep,
+        revealedAt: idx < keep ? now : undefined,
+      }));
+      const thread: Thread = {
+        ...t,
+        title: prompt.slice(0, 48),
+        items: [
+          { ...base, id: itemId(threadId, "u1", 0), messageId: "u1", kind: "user_prompt", title: "Prompt", content: prompt },
+          { ...base, id: itemId(threadId, "m1", 0), messageId: "m1", kind: "reasoning", title: "Thinking", content: thinking },
+          ...steps,
+        ],
+        turns: [{ messageId: "m1", status: "revealing", complexity: result.complexity, summary: result.summary, simulated: true }],
+      };
+      setThreads((ts) => [thread, ...ts.filter((x) => x.items.length > 0)]);
+      setActiveId(threadId);
+      scheduleReveal(threadId, "m1", steps.slice(keep), result.steps.slice(keep));
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   function scheduleReveal(threadId: string, messageId: string, items: ThreadItem[], steps: MainStep[]) {
     let at = 0;
     items.forEach((item, idx) => {
@@ -225,5 +265,5 @@ export function useThreads(opts: UseThreadsOptions = {}) {
     });
   }
 
-  return { threads, active, activeId, setActiveId, newChat, send };
+  return { threads, active, activeId, setActiveId, newChat, send, replay };
 }

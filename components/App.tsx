@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Composer, SuggestionList } from "@/components/Composer";
+import { Composer, SuggestionList, SUGGESTED_TASKS } from "@/components/Composer";
+import { mockResponse } from "@/lib/main/mock";
 import { LearnPanel, LearnPeek, LearnRail } from "@/components/learn/LearnPanel";
 import { ResizeHandle } from "@/components/ResizeHandle";
 import { LiveLearnChip, PostTaskLearnChip, RefresherChip } from "@/components/learn/LearnChips";
@@ -45,11 +46,23 @@ function store(key: string, value: number) {
 export function App() {
   // The main thread only exposes a generic "prompt sent" observer; learn mode subscribes to it.
   const onPromptSent = useRef<(threadId: string, messageId: string, prompt: string) => void>(undefined);
-  const { threads, active, activeId, setActiveId, newChat, send } = useThreads({
+  const { threads, active, activeId, setActiveId, newChat, send, replay } = useThreads({
     onPromptSent: (t, m, p) => onPromptSent.current?.(t, m, p),
   });
   const learn = useLearn(threads, activeId);
   const review = useReview();
+
+  // Showcase link: /?demo=review opens the login-page task near its end, so the review checklist
+  // appears a few seconds later. The param is dropped so a reload doesn't replay it.
+  const demoStarted = useRef(false);
+  useEffect(() => {
+    if (demoStarted.current || new URLSearchParams(window.location.search).get("demo") !== "review") return;
+    demoStarted.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    const prompt = SUGGESTED_TASKS[0].text;
+    const { thinking, result } = mockResponse(prompt);
+    replay(prompt, thinking.join(""), result, 3);
+  }, [replay]);
   const status = useDeployStatus();
   const memory = useMemory();
   // SPEC §11: suggest learning only if some topic isn't mastered yet.

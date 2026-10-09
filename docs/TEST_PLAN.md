@@ -40,6 +40,7 @@ Mode: **M** = mock (deterministic) · **L** = live · **M/L** = both.
 | A7 | Close the panel mid-question, keep working | Main agent unaffected; session resumes when reopened | M | P2 | — |
 | A8 | Review checklist (D22): finish a task that writes files | Card opens when the task is done with 4–6 unchecked, task-specific standards; check two, comment on one; minimize → pill, close → reopen from under the task with state kept; *Attach to reply* → composer chip → send; the sent message shows the checklist and Claude replies to it. Quick answers get no checklist | M/L | P0 | smoke |
 | A9 | Checklist quality (live) | Items are standards, not verdicts ("No secrets are hardcoded…", never "Claude used env vars"); specific to the task; file links point at files Claude wrote; no pass/fail hints | L | P1 | — |
+| A10 | Showcase link `/?demo=review` | A new chat opens with the login task almost done (last steps still revealing), the checklist appears within a few seconds, and the param is dropped from the URL | M/L | P1 | smoke |
 
 ### B. Honesty and labelling (what's real vs simulated)
 
