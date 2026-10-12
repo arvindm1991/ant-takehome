@@ -16,7 +16,7 @@ The main agent never knows the learning agent exists, and the task never waits o
 Separately from Learn mode, when Claude finishes work that wrote files, a **review checklist** opens: what good looks like for that task, which you check yourself (nothing is pre-checked), comment on, and attach to your reply to steer Claude's next turn.
 
 - **Prototype:** https://ant-takehome.vercel.app. Try *Build a login page with JWT auth for this app*, then click "Learn while Claude builds this" and pick a goal card.
-- **Review checklist, quickly:** https://ant-takehome.vercel.app/?demo=review opens the login task with Claude almost done; the checklist appears a few seconds later.
+- **Review checklist, quickly:** https://ant-takehome.vercel.app/demo opens the login task with Claude almost done; the checklist appears a few seconds later (`/?demo=review` does the same).
 - **Design and decisions:** [`SPEC.md`](SPEC.md) (numbered decision log, journeys, architecture, memory model, metrics)
 - **Test plan:** [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md) (includes the security and cost review) · **Eval strategy:** [`docs/EVAL_STRATEGY.md`](docs/EVAL_STRATEGY.md)
 

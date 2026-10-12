@@ -149,12 +149,16 @@ await journey("Review checklist: task done → unchecked checklist → check + c
   await p.getByRole("button", { name: /Review checklist sent/ }).waitFor();
 });
 
-await journey("Showcase link: /?demo=review opens the login task near its end → checklist within seconds", async () => {
+await journey("Showcase link: /demo and /?demo=review open the login task near its end → checklist within seconds", async () => {
   const p = await page();
   await p.goto(`${BASE}/?demo=review`);
   await p.getByText("Writing app/login/page.tsx…").waitFor({ timeout: 3000 });
   await p.getByRole("dialog", { name: "Review checklist" }).getByRole("checkbox").first().waitFor({ timeout: 15000 });
   if (p.url().includes("demo=")) throw new Error("demo param left in the URL (a reload would replay it)");
+  // The /demo page does the same, under its own path for page views.
+  const d = await page();
+  await d.goto(`${BASE}/demo`);
+  await d.getByRole("dialog", { name: "Review checklist" }).getByRole("checkbox").first().waitFor({ timeout: 15000 });
 });
 
 await journey("Suggestions in Claude's thread can be dismissed and stay dismissed for that task", async () => {

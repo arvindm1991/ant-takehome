@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Composer, SuggestionList, SUGGESTED_TASKS } from "@/components/Composer";
 import { mockResponse } from "@/lib/main/mock";
+import { track } from "@/lib/analytics";
 import { LearnPanel, LearnPeek, LearnRail } from "@/components/learn/LearnPanel";
 import { ResizeHandle } from "@/components/ResizeHandle";
 import { LiveLearnChip, PostTaskLearnChip, RefresherChip } from "@/components/learn/LearnChips";
@@ -43,7 +44,7 @@ function store(key: string, value: number) {
   } catch {}
 }
 
-export function App() {
+export function App({ demo }: { demo?: "review" } = {}) {
   // The main thread only exposes a generic "prompt sent" observer; learn mode subscribes to it.
   const onPromptSent = useRef<(threadId: string, messageId: string, prompt: string) => void>(undefined);
   const { threads, active, activeId, setActiveId, newChat, send, replay } = useThreads({
@@ -52,17 +53,19 @@ export function App() {
   const learn = useLearn(threads, activeId);
   const review = useReview();
 
-  // Showcase link: /?demo=review opens the login-page task near its end, so the review checklist
-  // appears a few seconds later. The param is dropped so a reload doesn't replay it.
+  // Showcase: /demo (or /?demo=review) opens the login-page task near its end, so the review checklist
+  // appears a few seconds later. On the home page the param is dropped so a reload doesn't replay it.
   const demoStarted = useRef(false);
   useEffect(() => {
-    if (demoStarted.current || new URLSearchParams(window.location.search).get("demo") !== "review") return;
+    const fromLink = new URLSearchParams(window.location.search).get("demo") === "review";
+    if (demoStarted.current || !(demo === "review" || fromLink)) return;
     demoStarted.current = true;
-    window.history.replaceState(null, "", window.location.pathname);
+    if (fromLink) window.history.replaceState(null, "", window.location.pathname);
+    track("demo_started", { demo: "review", via: demo ? "demo page" : "home link" });
     const prompt = SUGGESTED_TASKS[0].text;
     const { thinking, result } = mockResponse(prompt);
     replay(prompt, thinking.join(""), result, 3);
-  }, [replay]);
+  }, [replay, demo]);
   const status = useDeployStatus();
   const memory = useMemory();
   // SPEC §11: suggest learning only if some topic isn't mastered yet.
@@ -131,11 +134,16 @@ export function App() {
     measureReview.current = new ResizeObserver(() => setReviewInset(el.offsetHeight + 8));
     measureReview.current.observe(el);
   }, []);
+  const sendTask = (text: string) => {
+    track("task_sent", { suggested: SUGGESTED_TASKS.some((t) => t.text === text), learnMode: learn.panelOpen });
+    send(text);
+  };
   const reply = (text: string) => {
     if (attachedList) {
+      track("review_checklist_sent", { checked: attachedList.items.filter((i) => i.checked).length, total: attachedList.items.length, comments: attachedList.items.filter((i) => i.comment.trim()).length });
       send(composeReply(text, attachedList.items));
       review.markSent(attachedList.threadId, attachedList.messageId);
-    } else send(text);
+    } else sendTask(text);
     review.closeIn(active.id);
   };
   const lookAt = (messageId: string, path: string) => {
@@ -306,9 +314,9 @@ export function App() {
             </h1>
             <div className="w-full max-w-[720px]">
               {peek}
-              <Composer onSend={send} disabled={busy} variant="hero" />
+              <Composer onSend={sendTask} disabled={busy} variant="hero" />
               <div className="mt-8 sm:mt-12">
-                <SuggestionList onPick={send} />
+                <SuggestionList onPick={sendTask} />
               </div>
             </div>
           </div>
